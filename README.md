@@ -38,7 +38,7 @@ Cookie Consent by Devora provides a comprehensive solution for GDPR, CCPA, and o
 - ♿ **NEW (March 2025)**: Full WCAG 2.2 Level AA accessibility compliance
 - 🤖 **NEW (March 2025)**: Automatic consent for search engine bots
 - 🎨 **NEW (March 2025)**: Improved styling and consistent appearance across devices
-- 🔎 **NEW (April 2025)**: SEO-optimized with schema.org structured data
+- 🔎 **NEW (March 2025)**: SEO-optimized with schema.org structured data
 - 🌐 Full compliance with GDPR, CCPA, and other privacy regulations
 - 📱 Fully responsive design that works on all devices
 - 🔒 Secure by default with privacy-first approach
@@ -521,15 +521,15 @@ See the [changelog.txt](changelog.txt) file for a detailed list of changes.
 
 ## Upgrade Notice
 
-### 1.1.8
+### 1.1.8 - March 12, 2025
 
 This update includes important styling fixes and performance improvements. Update recommended for all users.
 
-### 1.1.7
+### 1.1.7 - March 10, 2025
 
 Adds automatic bot detection and consent - improves SEO performance.
 
-### 1.1.6
+### 1.1.6 - March 8, 2025
 
 Adds full WCAG 2.2 Level AA compliance - important for accessibility requirements.
 
