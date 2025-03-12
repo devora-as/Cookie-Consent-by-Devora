@@ -2,14 +2,7 @@
 
 All notable changes to the Custom Cookie Consent plugin are documented in this file.
 
-## 1.0.8 - 2023-07-10
-### Fixed
-- Fixed error_log usage by wrapping in WP_DEBUG check
-- Added proper sanitization and unslashing for $_SERVER['HTTP_COOKIE']
-- Improved README.md file structure and formatting
-- Fixed duplicate stable tag line in README.md
-
-## 1.0.7 - 2023-06-15
+## 1.0.7 - 2025-02-28
 ### Added
 - Added "Save Preferences" button for better user control
 - Added CSS styles for the new button
@@ -19,7 +12,7 @@ All notable changes to the Custom Cookie Consent plugin are documented in this f
 - Enhanced error handling and logging for better troubleshooting
 - Improved banner reopening functionality
 
-## 1.0.6 - 2023-05-20
+## 1.0.6 - 2025-02-18
 ### Changed
 - Updated to support WordPress 6.7
 - Improved JavaScript code with better error handling
@@ -28,7 +21,7 @@ All notable changes to the Custom Cookie Consent plugin are documented in this f
 ### Fixed
 - Fixed compatibility issues with Google Site Kit
 
-## 1.0.5 - 2023-04-10
+## 1.0.5 - 2025-02-08
 ### Added
 - Added debug log method for proper debug handling
 - Added integration with WP_DEBUG for more efficient development
@@ -38,7 +31,7 @@ All notable changes to the Custom Cookie Consent plugin are documented in this f
 - Fixed security escaping for URLs in enqueue_assets method
 - Fixed JavaScript escaping for Google Tag Manager ID
 
-## 1.0.4 - 2023-03-05
+## 1.0.4 - 2025-01-30
 ### Changed
 - Updated debug logging to utilize WordPress logging functions
 - Improved Google Consent Mode v2 integration
@@ -48,7 +41,7 @@ All notable changes to the Custom Cookie Consent plugin are documented in this f
 - Fixed bootstrap.php test file security escaping
 - Added proper return type declarations in various methods
 
-## 1.0.3 - 2023-02-10
+## 1.0.3 - 2025-01-25
 ### Added
 - Added proper GPL v2 license information to plugin header file
 - Added required WordPress plugin headers
@@ -59,7 +52,7 @@ All notable changes to the Custom Cookie Consent plugin are documented in this f
   - Proper escaping for JavaScript using esc_js()
   - Sanitizing cookie input with sanitize_text_field() and wp_unslash()
 
-## 1.0.2 - 2023-01-15
+## 1.0.2 - 2025-01-20
 ### Added
 - Added support for HubSpot integration
 - Added separate cookie-enforcer.js script to handle cookie removal
@@ -68,7 +61,7 @@ All notable changes to the Custom Cookie Consent plugin are documented in this f
 - Enhanced performance by conditionally loading CSS
 - Improved mobile responsiveness of cookie banner
 
-## 1.0.1 - 2022-12-05
+## 1.0.1 - 2025-01-16
 ### Fixed
 - Fixed cookie persistence issues on certain browsers
 - Improved compatibility with various WordPress themes
@@ -78,7 +71,7 @@ All notable changes to the Custom Cookie Consent plugin are documented in this f
 - Refined the user interface of the consent banner
 - Enhanced performance by optimizing JavaScript code
 
-## 1.0.0 - 2022-11-01
+## 1.0.0 - 2025-01-12
 ### Added
 - Initial release
 - GDPR compliant cookie consent banner
