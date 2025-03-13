@@ -43,17 +43,6 @@ if (typeof window.bannerTemplate === "undefined") {
                       <p id="functional-category-description">Disse informasjonskapslene gjør at nettstedet kan gi forbedret funksjonalitet.</p>
                   </div>
               </div>
-              
-              <div class="cookie-category">
-                  <label class="toggle-switch" for="marketing-cookie-toggle">
-                      <input type="checkbox" id="marketing-cookie-toggle" data-category="marketing">
-                      <span class="slider" aria-hidden="true"></span>
-                  </label>
-                  <div class="category-info">
-                      <h4 id="marketing-category-heading">Markedsføring</h4>
-                      <p id="marketing-category-description">Disse informasjonskapslene brukes til å vise målrettet markedsføring.</p>
-                  </div>
-              </div>
           </section>
 
           <div class="cookie-consent-buttons" role="group" aria-label="Samtykkevalg for informasjonskapsler">
@@ -78,16 +67,10 @@ if (typeof window.bannerTemplate === "undefined") {
   // Make template available globally
   window.bannerTemplate = bannerTemplate;
 
-  // Only log in debug mode
-  if (window.cookieConsentSettings?.debug) {
-    console.log("Using default template - no server-generated template found");
-  }
+  console.log("Using default template - no server-generated template found");
 } else {
-  // Only log in debug mode
-  if (window.cookieConsentSettings?.debug) {
-    console.log(
-      "Using server-generated template with timestamp: " +
-        (window.templateTimestamp || "unknown")
-    );
-  }
+  console.log(
+    "Using server-generated template with timestamp: " +
+      (window.templateTimestamp || "unknown")
+  );
 }

@@ -669,9 +669,6 @@ class ConsentManager {
     // Accept all categories by finding all toggles
     const categories = {
       necessary: true, // Always enabled
-      analytics: true, // Explicitly set all main categories
-      functional: true,
-      marketing: true,
     };
 
     // Find all category toggles and set them to true
@@ -684,11 +681,6 @@ class ConsentManager {
         // Update the UI
         checkbox.checked = true;
       });
-
-    // Debug log what categories are being accepted
-    if (window.cookieConsentSettings?.debug) {
-      console.log("Accept all categories:", categories);
-    }
 
     this.saveConsent(categories);
   }
@@ -737,26 +729,11 @@ class ConsentManager {
     // Record consent timestamp
     const timestamp = new Date().toISOString();
 
-    // Ensure categories object has expected structure
-    if (
-      !categories.marketing &&
-      document.getElementById("marketing-cookie-toggle")
-    ) {
-      categories.marketing = document.getElementById(
-        "marketing-cookie-toggle"
-      ).checked;
-    }
-
     const consentData = {
       version: this.consentVersion,
       timestamp: timestamp,
       categories: categories,
     };
-
-    // Debug log the final consent data that will be saved
-    if (window.cookieConsentSettings?.debug) {
-      console.log("Saving consent data:", consentData);
-    }
 
     // Store in cookie with secure flag if possible
     this.setConsentCookie(consentData);
@@ -897,7 +874,6 @@ class ConsentManager {
       window.hubspot.setConsent({
         analytics: consent.categories.analytics,
         functionality: consent.categories.functional,
-        marketing: consent.categories.marketing,
       });
     }
 
@@ -911,9 +887,9 @@ class ConsentManager {
         ? "granted"
         : "denied",
       security_storage: "granted",
-      ad_storage: consent.categories.marketing ? "granted" : "denied",
-      ad_user_data: consent.categories.marketing ? "granted" : "denied",
-      ad_personalization: consent.categories.marketing ? "granted" : "denied",
+      ad_storage: consent.categories.analytics ? "granted" : "denied",
+      ad_user_data: consent.categories.analytics ? "granted" : "denied",
+      ad_personalization: consent.categories.analytics ? "granted" : "denied",
       region: ["NO"],
       wait_for_update: 2000,
     };
@@ -923,7 +899,7 @@ class ConsentManager {
     window.dataLayer.push(["consent", "update", consentSettings]);
 
     // Force update for ad consent settings with a slight delay
-    if (consent.categories.marketing) {
+    if (consent.categories.analytics) {
       setTimeout(() => {
         const adSettings = {
           ad_storage: "granted",

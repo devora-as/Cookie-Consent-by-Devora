@@ -4,7 +4,7 @@
  * Plugin Name: Cookie Consent by Devora
  * Plugin URI: https://devora.no/plugins/cookie-consent
  * Description: A lightweight, customizable cookie consent solution with Google Consent Mode v2 integration.
- * Version: 1.1.9
+ * Version: 1.1.8
  * Author: Devora AS
  * Author URI: https://devora.no
  * License: GPL v3 or later
@@ -31,7 +31,7 @@ if (!defined('WPINC')) {
 }
 
 // Define plugin version
-define('CUSTOM_COOKIE_VERSION', '1.1.9');
+define('CUSTOM_COOKIE_VERSION', '1.1.8');
 
 // Require dependencies
 require_once plugin_dir_path(__FILE__) . 'includes/class-cookie-categories.php';
@@ -1384,10 +1384,7 @@ class CookieConsent
                         }
                     })
                     .catch(error => {
-                        // Only log in debug mode
-                        if (window.cookieConsentSettings?.debug) {
-                            console.error("Error fetching consent data:", error);
-                        }
+                        console.error("Error fetching consent data:", error);
                         container.innerHTML = "<p style=\"color: #666; text-align: center;\">' . esc_js(__('Error loading consent data.', 'custom-cookie-consent')) . '</p>";
                         loading.style.display = "none";
                         container.style.display = "block";

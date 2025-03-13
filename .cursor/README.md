@@ -7,7 +7,7 @@ Contributors: devoraas
 Tested up to: 6.7
 Requires PHP: 8.0
 Requires at least: 6.5
-Stable tag: 1.1.9
+Stable tag: 1.1.8
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 
@@ -43,8 +43,6 @@ Cookie Consent by Devora provides a comprehensive solution for GDPR, CCPA, and o
 - 📱 Fully responsive design that works on all devices
 - 🔒 Secure by default with privacy-first approach
 - 📊 Detailed consent logging and reporting
-- 🧩 **NEW (March 2025)**: Full marketing cookie category support for ad tracking
-- 🔄 **NEW (March 2025)**: Cache-friendly consent display with AJAX updates
 
 ## Key Benefits
 
@@ -521,32 +519,7 @@ The plugin supports user data rights required by privacy regulations:
 
 See the [changelog.txt](changelog.txt) file for a detailed list of changes.
 
-## Roadmap
-
-The following features are planned for upcoming versions of Cookie Consent by Devora:
-
-### Upcoming Features
-
-- **Enhanced Email Notifications** - Upgraded layout styling of email notifications sent when uncategorized cookies are detected
-- **WordPress Multisite Support** - Full integration with WordPress Multisite / Network installations
-- **Standalone Google Analytics 4 Support** - In addition to Google Site Kit integration, direct support for GA4 without requiring Site Kit
-- **Consent Analytics Dashboard** - Statistics and charts showing how many users accepted your cookies (all anonymous)
-- **Enhanced Multilingual Support** - Support for most commonly used languages with ability to choose language or translate strings manually
-- **Cookie Database Integration** - Auto detection of cookie data and categories from cookiedatabase.org, with clear and continuously updated cookie descriptions
-- **Advanced Design Customization** - Enhanced customization options for colors, effects, and text with live preview
-- **Compliance Checklist** - A simple checklist outlining steps for legally compliant setup, written in non-legal language
-- **Anti-Ad-Blocker System** - Functionality to ensure cookie consent works even with ad blockers enabled
-- **Geo-targeted Consent Management** - Region-based consent banners with different behavior for different regions (e.g., EU vs. US)
-- **Consent Optimization** - A/B testing functionality for consent banners to optimize user experience and acceptance rates
-- **Cookie Policy Generator** - Built-in tool to generate a comprehensive cookie policy for your website
-
-These planned features represent our commitment to continuously improving the Cookie Consent by Devora plugin based on user feedback and evolving privacy regulations.
-
 ## Upgrade Notice
-
-### 1.1.9 - March 13, 2025
-
-Fixes important issues with the WP Consent API button, marketing cookie handling, and enhances cache compatibility. Update strongly recommended for all users.
 
 ### 1.1.8 - March 12, 2025
 
