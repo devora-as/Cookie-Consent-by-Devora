@@ -1,0 +1,200 @@
+# Custom Cookie Consent Changelog
+
+All notable changes to the Custom Cookie Consent plugin are documented in this file.
+
+## 1.1.8 - 2025-03-12
+### Added
+- Full PageSpeed Insights and Core Web Vitals optimization
+- Deferred banner loading to improve Largest Contentful Paint (LCP)
+- Optimized JavaScript execution to minimize First Input Delay (FID)
+- Smooth banner animation to prevent Cumulative Layout Shift (CLS)
+- Event delegation pattern for improved Interaction to Next Paint (INP)
+
+### Enhancement
+- Reduced critical CSS footprint with minimal inline styles
+- Implemented modern loading techniques (async/defer) for all scripts
+- Added preconnect hints for faster third-party resource loading
+- Optimized DOM operations with document fragments
+- Improved animation performance with hardware-accelerated CSS transitions
+- Added conditional asset loading based on consent status
+- Implemented requestAnimationFrame for smoother visual updates
+- Reduced overall JavaScript and CSS payload size
+
+### Fixed
+- Resolved styling issues with the cookie consent banner
+- Improved banner positioning and appearance across different devices
+- Enhanced visual consistency of toggle switches and buttons
+- Fixed z-index issues to ensure banner displays correctly
+- Restored "Powered by Devora" branding in the banner footer
+- Implemented inline styling to ensure consistent appearance regardless of CSS loading
+
+## 1.1.7 - 2025-03-10
+### Added
+- Automatic cookie consent for search engine bots and crawlers
+- Enhanced schema.org structured data with bot-specific information
+- Server-side and client-side bot detection
+
+### Enhancement
+- Improved SEO by allowing bots to access all content without consent barriers
+- Optimized page loading for search engine crawlers
+- Added comprehensive list of bot user agents for detection
+- Implemented conditional asset loading based on bot detection
+
+## 1.1.6 - 2025-03-08
+### Added
+- Full WCAG 2.2 Level AA compliance for accessibility
+- Improved keyboard navigation with focus trap management
+- Enhanced screen reader support with proper ARIA attributes
+- Added support for Windows High Contrast Mode
+- Implemented reduced motion preference detection
+
+### Enhancement
+- Improved color contrast ratios throughout the banner
+- Enhanced focus indicators for all interactive elements
+- Added proper semantic HTML structure with header, section, and footer elements
+- Ensured all form controls have associated labels
+- Improved touch target sizes for mobile devices
+- Added Escape key support for closing the banner
+- Implemented focus restoration when banner is closed
+
+## 1.1.5 - 2025-03-07
+### Added
+- Added user consent data storage in user meta for logged-in users
+- Implemented AJAX handler for saving consent data server-side
+- Added nonce verification for secure consent data storage
+- Enhanced JavaScript to send consent data to the server when provided
+
+### Enhancement
+- Improved debugging capabilities for consent storage operations
+- Added detailed logging for consent data processing
+- Updated JavaScript with better error handling and response processing
+
+## 1.1.3 - 2025-03-05
+### Added
+- Schema.org structured data for improved search engine understanding
+- Meta tags for better SEO performance
+- Improved semantic HTML structure with proper ARIA roles and attributes
+- Enhanced accessibility of the cookie consent banner
+- Optimized banner HTML structure for better search engine indexing
+- Robots.txt integration to prevent indexing of cookie-related assets
+- WordPress sitemap integration for better SEO handling
+
+## 1.1.2 - 2025-03-04
+### Added
+- Added CDN support through the 'custom_cookie_consent_asset_url' filter
+- Improved compatibility with popular CDN providers like CloudFlare, Quic Cloud, Sucuri, KeyCDN, RocketCDN, Amazon CloudFront, and Azure CDN
+
+### Enhancement
+- Refactored asset URL handling for better performance and flexibility
+- Improved code organization with a dedicated method for asset URL generation
+
+## 1.1.1 - 2025-03-02
+### Added
+- Added Cookie Policy URL field in the settings page
+- Added Cookie Policy Link Text field in the translations page
+- Updated the banner generator to support both Privacy Policy and Cookie Policy links
+
+### Enhancement
+- Improved the organization of text customization options
+- Enhanced banner footer with support for multiple policy links
+
+## 1.1.0 - 2025-02-28
+### Added
+- Dynamic cookie scanning functionality to automatically detect cookies used on the site
+- Admin interface for managing detected cookies
+- Cookie categorization system with pattern-based recognition
+- Plugin integration system for automatic cookie recognition
+- Settings page for configuring banner and scanner options
+
+### Enhancement
+- Improved cookie enforcer with more intelligent pattern matching
+- Added continuous monitoring for new cookies being set
+- Self-updating banner that reflects detected cookies
+- Added automatic recognition of cookies from popular plugins
+
+### Fixed
+- Fixed error_log usage by wrapping in WP_DEBUG check
+- Added proper sanitization and unslashing for $_SERVER['HTTP_COOKIE']
+- Improved README.md file structure and formatting
+- Fixed duplicate stable tag line in README.md
+
+## 1.0.7 - 2025-02-28
+### Added
+- Added "Save Preferences" button for better user control
+- Added CSS styles for the new button
+
+### Fixed
+- Fixed issue with cookie settings button not reopening consent banner
+- Enhanced error handling and logging for better troubleshooting
+- Improved banner reopening functionality
+
+## 1.0.6 - 2025-02-18
+### Changed
+- Updated to support WordPress 6.7
+- Improved JavaScript code with better error handling
+- Added enhanced logging for cookie operations
+
+### Fixed
+- Fixed compatibility issues with Google Site Kit
+
+## 1.0.5 - 2025-02-08
+### Added
+- Added debug log method for proper debug handling
+- Added integration with WP_DEBUG for more efficient development
+- Implemented proper namespace usage for wp_debug_log function
+
+### Fixed
+- Fixed security escaping for URLs in enqueue_assets method
+- Fixed JavaScript escaping for Google Tag Manager ID
+
+## 1.0.4 - 2025-01-30
+### Changed
+- Updated debug logging to utilize WordPress logging functions
+- Improved Google Consent Mode v2 integration
+- Enhanced cookie enforcer script for better enforcement of user preferences
+
+### Fixed
+- Fixed bootstrap.php test file security escaping
+- Added proper return type declarations in various methods
+
+## 1.0.3 - 2025-01-25
+### Added
+- Added proper GPL v2 license information to plugin header file
+- Added required WordPress plugin headers
+
+### Fixed
+- Fixed various security issues by implementing:
+  - Proper escaping for URLs using esc_url()
+  - Proper escaping for JavaScript using esc_js()
+  - Sanitizing cookie input with sanitize_text_field() and wp_unslash()
+
+## 1.0.2 - 2025-01-20
+### Added
+- Added support for HubSpot integration
+- Added separate cookie-enforcer.js script to handle cookie removal
+
+### Changed
+- Enhanced performance by conditionally loading CSS
+- Improved mobile responsiveness of cookie banner
+
+## 1.0.1 - 2025-01-16
+### Fixed
+- Fixed cookie persistence issues on certain browsers
+- Improved compatibility with various WordPress themes
+- Added cross-browser support for cookie setting operations
+
+### Changed
+- Refined the user interface of the consent banner
+- Enhanced performance by optimizing JavaScript code
+
+## 1.0.0 - 2025-01-12
+### Added
+- Initial release
+- GDPR compliant cookie consent banner
+- Google Consent Mode v2 integration
+- Google Analytics 4 support via Site Kit
+- WP Consent API compatibility
+- Customizable design
+- Multi-language support
+- Easy-to-add cookie settings link
+- Close button with text 

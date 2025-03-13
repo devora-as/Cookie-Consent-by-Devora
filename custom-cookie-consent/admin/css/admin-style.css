@@ -1,0 +1,279 @@
+/* 
+ * Custom Cookie Consent Admin Styles
+ * CSS for the admin interface of the cookie consent plugin
+ */
+
+.cookie-consent-admin-wrap {
+    margin: 20px;
+    max-width: 1200px;
+}
+
+.cookie-consent-admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    background: #fff;
+    padding: 15px 20px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.cookie-consent-admin-header h1 {
+    margin: 0;
+    color: #23282d;
+    font-size: 1.5em;
+}
+
+/* Devora branding styles */
+.devora-branding {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.devora-branding a {
+    text-decoration: none;
+    margin-left: 5px;
+}
+
+.devora-logo {
+    font-weight: 600;
+    color: #4C4CFF;
+    font-size: 1.1em;
+}
+
+.cookie-consent-admin-nav {
+    background: #fff;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.cookie-consent-admin-nav a {
+    display: inline-block;
+    margin-right: 15px;
+    padding: 8px 12px;
+    text-decoration: none;
+    border-radius: 3px;
+    color: #0073aa;
+}
+
+.cookie-consent-admin-nav a.active {
+    background: #0073aa;
+    color: #fff;
+}
+
+.cookie-consent-admin-card {
+    background: #fff;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.cookie-consent-admin-card h2 {
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.cookie-consent-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.cookie-consent-stat-card {
+    background: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    flex: 1;
+    margin-right: 15px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.cookie-consent-stat-card:last-child {
+    margin-right: 0;
+}
+
+.cookie-consent-stat-card h3 {
+    margin-top: 0;
+    font-size: 1.1em;
+    color: #555;
+}
+
+.cookie-consent-stat-card .stat-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #0073aa;
+}
+
+/* Scanner page */
+.cookie-scan-results {
+    margin-top: 20px;
+}
+
+.cookie-scan-actions {
+    margin-bottom: 20px;
+}
+
+.cookie-consent-scan-button {
+    background: #0073aa;
+    color: #fff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.cookie-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.cookie-list-table th,
+.cookie-list-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.cookie-list-table th {
+    background: #f5f5f5;
+}
+
+.cookie-list-table tr:hover {
+    background: #f9f9f9;
+}
+
+.cookie-status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.cookie-status-categorized {
+    background: #e7f5e7;
+    color: #2a802a;
+}
+
+.cookie-status-uncategorized {
+    background: #f8e7e7;
+    color: #c73d3d;
+}
+
+.cookie-action-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.cookie-category-selector {
+    width: 100%;
+    padding: 5px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+}
+
+.cookie-save-btn {
+    background: #0073aa;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+/* Settings page */
+.cookie-consent-settings-form {
+    max-width: 800px;
+}
+
+.form-table th {
+    width: 200px;
+}
+
+.form-field {
+    margin-bottom: 15px;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-field input[type="text"],
+.form-field textarea,
+.form-field select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+}
+
+.form-field textarea {
+    min-height: 100px;
+}
+
+.cookie-consent-submit {
+    background: #0073aa;
+    color: #fff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-top: 15px;
+}
+
+/* Notifications */
+.cookie-consent-notice {
+    padding: 10px 15px;
+    margin: 10px 0;
+    border-radius: 3px;
+}
+
+.cookie-consent-notice-success {
+    background: #e7f5e7;
+    border: 1px solid #c5e1c5;
+    color: #2a802a;
+}
+
+.cookie-consent-notice-error {
+    background: #f8e7e7;
+    border: 1px solid #e1c5c5;
+    color: #c73d3d;
+}
+
+.cookie-consent-notice-info {
+    background: #e7eff8;
+    border: 1px solid #c5d1e1;
+    color: #3d5cc7;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .cookie-consent-stats {
+        flex-direction: column;
+    }
+    
+    .cookie-consent-stat-card {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+    
+    .cookie-list-table {
+        display: block;
+        overflow-x: auto;
+    }
+} 
