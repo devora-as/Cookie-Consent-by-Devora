@@ -59,6 +59,15 @@ class AdminInterface
             'custom-cookie-translations',
             [$this, 'render_translations_page']
         );
+
+        add_submenu_page(
+            'options-general.php',
+            __('Cookie Consent', 'custom-cookie-consent'),
+            __('Cookie Consent', 'custom-cookie-consent'),
+            'manage_options',
+            'cookie-consent',
+            [$this, 'render_admin_page']
+        );
     }
 
     public function enqueue_admin_assets($hook)
@@ -179,6 +188,331 @@ class AdminInterface
         $settings = get_option('custom_cookie_settings', []);
 
         include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/translations.php';
+    }
+
+    public function render_admin_page()
+    {
+        // Get current tab
+        $tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'dashboard';
+
+        // Get tabs
+        $tabs = [
+            'dashboard' => __('Dashboard', 'custom-cookie-consent'),
+            'settings' => __('Settings', 'custom-cookie-consent'),
+            'scanner' => __('Cookie Scanner', 'custom-cookie-consent'),
+            'translations' => __('Translations', 'custom-cookie-consent'),
+            'consent_logs' => __('Consent Logs', 'custom-cookie-consent'),
+        ];
+
+        // Start output buffering
+        ob_start();
+
+        // Include template
+        include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/header.php';
+
+        // Include tab content
+        switch ($tab) {
+            case 'settings':
+                include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/settings.php';
+                break;
+            case 'scanner':
+                include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/scanner.php';
+                break;
+            case 'translations':
+                include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/translations.php';
+                break;
+            case 'consent_logs':
+                $this->render_consent_logs();
+                break;
+            default:
+                include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/dashboard.php';
+                break;
+        }
+
+        // Include footer
+        include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/footer.php';
+
+        // End output buffering and echo content
+        echo ob_get_clean();
+    }
+
+    /**
+     * Render the consent logs page
+     * 
+     * @return void
+     */
+    private function render_consent_logs(): void
+    {
+        global $wpdb;
+
+        // Process export if requested
+        if (isset($_GET['export']) && $_GET['export'] === 'csv' && check_admin_referer('export_consent_logs')) {
+            $this->export_consent_logs_csv();
+            exit;
+        }
+
+        // Get the consent logs table name
+        $table_name = $wpdb->prefix . 'cookie_consent_logs';
+
+        // Pagination
+        $page = isset($_GET['paged']) ? max(1, intval($_GET['paged'])) : 1;
+        $per_page = 20;
+        $offset = ($page - 1) * $per_page;
+
+        // Get total logs count
+        $total_logs = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+        $total_pages = ceil($total_logs / $per_page);
+
+        // Get logs
+        $logs = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $table_name ORDER BY timestamp DESC LIMIT %d OFFSET %d",
+                $per_page,
+                $offset
+            )
+        );
+
+?>
+        <div class="wrap">
+            <h2><?php _e('Consent Logs', 'custom-cookie-consent'); ?></h2>
+
+            <p><?php _e('This page displays a log of all consent choices made by your website visitors, as required by the ePrivacy Directive (ekomloven) §3-15.', 'custom-cookie-consent'); ?></p>
+
+            <div class="tablenav top">
+                <div class="alignleft actions">
+                    <?php
+                    // Create export URL with nonce
+                    $export_url = wp_nonce_url(
+                        add_query_arg(
+                            [
+                                'page' => 'cookie-consent',
+                                'tab' => 'consent_logs',
+                                'export' => 'csv'
+                            ],
+                            admin_url('options-general.php')
+                        ),
+                        'export_consent_logs'
+                    );
+                    ?>
+                    <a href="<?php echo esc_url($export_url); ?>" class="button"><?php _e('Export as CSV', 'custom-cookie-consent'); ?></a>
+                </div>
+
+                <?php if ($total_pages > 1): ?>
+                    <div class="tablenav-pages">
+                        <span class="displaying-num">
+                            <?php printf(
+                                _n('%s item', '%s items', $total_logs, 'custom-cookie-consent'),
+                                number_format_i18n($total_logs)
+                            ); ?>
+                        </span>
+
+                        <span class="pagination-links">
+                            <?php
+                            echo paginate_links([
+                                'base' => add_query_arg('paged', '%#%'),
+                                'format' => '',
+                                'prev_text' => '&laquo;',
+                                'next_text' => '&raquo;',
+                                'total' => $total_pages,
+                                'current' => $page
+                            ]);
+                            ?>
+                        </span>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th><?php _e('ID', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Date/Time', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('User', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Necessary', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Analytics', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Functional', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Marketing', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Details', 'custom-cookie-consent'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($logs)): ?>
+                        <tr>
+                            <td colspan="8"><?php _e('No consent logs found.', 'custom-cookie-consent'); ?></td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($logs as $log): ?>
+                            <?php
+                            // Parse consent data
+                            $consent_data = json_decode($log->consent_data, true);
+                            $categories = isset($consent_data['categories']) ? $consent_data['categories'] : [];
+
+                            // Get user info
+                            $user_info = '';
+                            if (!empty($log->user_id)) {
+                                $user = get_user_by('id', $log->user_id);
+                                if ($user) {
+                                    $user_info = esc_html($user->user_login) . ' (' . esc_html($user->user_email) . ')';
+                                } else {
+                                    $user_info = sprintf(__('User ID: %d (deleted)', 'custom-cookie-consent'), $log->user_id);
+                                }
+                            } else {
+                                $user_info = __('Anonymous', 'custom-cookie-consent');
+                            }
+
+                            // Format checkmarks
+                            $check = '✓';
+                            $cross = '✗';
+                            ?>
+                            <tr>
+                                <td><?php echo esc_html($log->id); ?></td>
+                                <td><?php echo esc_html(get_date_from_gmt($log->timestamp, get_option('date_format') . ' ' . get_option('time_format'))); ?></td>
+                                <td><?php echo $user_info; ?></td>
+                                <td><?php echo isset($categories['necessary']) && $categories['necessary'] ? $check : $cross; ?></td>
+                                <td><?php echo isset($categories['analytics']) && $categories['analytics'] ? $check : $cross; ?></td>
+                                <td><?php echo isset($categories['functional']) && $categories['functional'] ? $check : $cross; ?></td>
+                                <td><?php echo isset($categories['marketing']) && $categories['marketing'] ? $check : $cross; ?></td>
+                                <td>
+                                    <button type="button" class="button button-small toggle-consent-details"
+                                        data-consent='<?php echo esc_attr(wp_json_encode($consent_data)); ?>'>
+                                        <?php _e('View Details', 'custom-cookie-consent'); ?>
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th><?php _e('ID', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Date/Time', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('User', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Necessary', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Analytics', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Functional', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Marketing', 'custom-cookie-consent'); ?></th>
+                        <th><?php _e('Details', 'custom-cookie-consent'); ?></th>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <?php if ($total_pages > 1): ?>
+                <div class="tablenav bottom">
+                    <div class="tablenav-pages">
+                        <span class="displaying-num">
+                            <?php printf(
+                                _n('%s item', '%s items', $total_logs, 'custom-cookie-consent'),
+                                number_format_i18n($total_logs)
+                            ); ?>
+                        </span>
+
+                        <span class="pagination-links">
+                            <?php
+                            echo paginate_links([
+                                'base' => add_query_arg('paged', '%#%'),
+                                'format' => '',
+                                'prev_text' => '&laquo;',
+                                'next_text' => '&raquo;',
+                                'total' => $total_pages,
+                                'current' => $page
+                            ]);
+                            ?>
+                        </span>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Modal for consent details -->
+            <div id="consent-details-modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+                <div style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px;">
+                    <span id="close-modal" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+                    <h3><?php _e('Consent Details', 'custom-cookie-consent'); ?></h3>
+                    <div id="consent-details-content"></div>
+                </div>
+            </div>
+
+            <script>
+                jQuery(document).ready(function($) {
+                    // Handle view details button click
+                    $('.toggle-consent-details').on('click', function() {
+                        var consentData = $(this).data('consent');
+                        var content = '<pre>' + JSON.stringify(consentData, null, 2) + '</pre>';
+                        $('#consent-details-content').html(content);
+                        $('#consent-details-modal').show();
+                    });
+
+                    // Close modal when X is clicked
+                    $('#close-modal').on('click', function() {
+                        $('#consent-details-modal').hide();
+                    });
+
+                    // Close modal when clicking outside the content
+                    $(window).on('click', function(event) {
+                        if ($(event.target).is('#consent-details-modal')) {
+                            $('#consent-details-modal').hide();
+                        }
+                    });
+                });
+            </script>
+        </div>
+    <?php
+    }
+
+    /**
+     * Export consent logs as CSV
+     * 
+     * @return void
+     */
+    private function export_consent_logs_csv(): void
+    {
+        global $wpdb;
+
+        // Get the consent logs table name
+        $table_name = $wpdb->prefix . 'cookie_consent_logs';
+
+        // Get all logs
+        $logs = $wpdb->get_results("SELECT * FROM $table_name ORDER BY timestamp DESC");
+
+        // Set headers for CSV download
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="consent-logs-' . date('Y-m-d') . '.csv"');
+
+        // Create output stream
+        $output = fopen('php://output', 'w');
+
+        // Add CSV header row
+        fputcsv($output, [
+            'ID',
+            'Timestamp',
+            'User ID',
+            'IP Hash',
+            'Necessary',
+            'Analytics',
+            'Functional',
+            'Marketing',
+            'Full Consent Data'
+        ]);
+
+        // Add data rows
+        foreach ($logs as $log) {
+            $consent_data = json_decode($log->consent_data, true);
+            $categories = isset($consent_data['categories']) ? $consent_data['categories'] : [];
+
+            fputcsv($output, [
+                $log->id,
+                $log->timestamp,
+                $log->user_id ?: 'N/A',
+                $log->ip_hash ?: 'N/A',
+                isset($categories['necessary']) && $categories['necessary'] ? 'Yes' : 'No',
+                isset($categories['analytics']) && $categories['analytics'] ? 'Yes' : 'No',
+                isset($categories['functional']) && $categories['functional'] ? 'Yes' : 'No',
+                isset($categories['marketing']) && $categories['marketing'] ? 'Yes' : 'No',
+                $log->consent_data
+            ]);
+        }
+
+        // Close the output stream
+        fclose($output);
     }
 
     public function ajax_categorize_cookie()
@@ -343,7 +677,7 @@ class AdminInterface
     private function generate_enforcer_rules($categorized)
     {
         ob_start();
-?>
+    ?>
         /**
         * Dynamically generated cookie enforcer rules
         * Last updated: <?php echo current_time('mysql'); ?>

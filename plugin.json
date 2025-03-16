@@ -1,0 +1,22 @@
+{
+  "name": "Cookie Consent by Devora",
+  "version": "1.1.9",
+  "download_url": "https://github.com/devora-as/Cookie-Consent-by-Devora/releases/latest/download/custom-cookie-consent.zip",
+  "requires": "5.3",
+  "tested": "6.4",
+  "requires_php": "7.4",
+  "last_updated": "2025-03-13 12:00:00",
+  "sections": {
+    "description": "A lightweight, customizable cookie consent solution with Google Consent Mode v2 integration.",
+    "installation": "Upload the plugin folder to your /wp-content/plugins/ directory or install through WordPress's plugin installer.",
+    "changelog": "Please see the GitHub releases page for detailed changelog information: https://github.com/devora-as/Cookie-Consent-by-Devora/releases"
+  },
+  "banners": {
+    "low": "https://ps.w.org/custom-cookie-consent/assets/banner-772x250.jpg",
+    "high": "https://ps.w.org/custom-cookie-consent/assets/banner-1544x500.jpg"
+  },
+  "icons": {
+    "1x": "https://ps.w.org/custom-cookie-consent/assets/icon-128x128.png",
+    "2x": "https://ps.w.org/custom-cookie-consent/assets/icon-256x256.png"
+  }
+} 

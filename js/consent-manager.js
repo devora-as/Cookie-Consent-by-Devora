@@ -77,6 +77,7 @@ class ConsentManager {
       necessary: true,
       analytics: true,
       functional: true,
+      marketing: true,
     };
 
     const consentData = {
@@ -848,27 +849,38 @@ class ConsentManager {
     // Apply consent immediately without reload
     this.applyConsent();
 
-    // Force update for analytics
-    if (consentData.categories.analytics) {
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push([
-        "consent",
-        "update",
-        {
-          analytics_storage: "granted",
-          ad_storage: "granted",
-        },
-      ]);
+    // Force update for analytics and marketing separately
+    window.dataLayer = window.dataLayer || [];
 
-      // Try to update Site Kit if available
-      if (window.googlesitekit) {
-        try {
-          window.googlesitekit.dispatch("modules/analytics-4").setConsentState({
-            analytics_storage: "granted",
-          });
-        } catch (e) {
-          // Error handling for Site Kit update
-        }
+    // Create consent update object based on actual consent choices
+    const consentUpdate = {
+      analytics_storage: consentData.categories.analytics
+        ? "granted"
+        : "denied",
+      ad_storage: consentData.categories.marketing ? "granted" : "denied",
+      ad_user_data: consentData.categories.marketing ? "granted" : "denied",
+      ad_personalization: consentData.categories.marketing
+        ? "granted"
+        : "denied",
+      functionality_storage: consentData.categories.functional
+        ? "granted"
+        : "denied",
+      personalization_storage: consentData.categories.functional
+        ? "granted"
+        : "denied",
+      security_storage: "granted",
+    };
+
+    window.dataLayer.push(["consent", "update", consentUpdate]);
+
+    // Try to update Site Kit if available
+    if (window.googlesitekit && consentData.categories.analytics) {
+      try {
+        window.googlesitekit.dispatch("modules/analytics-4").setConsentState({
+          analytics_storage: "granted",
+        });
+      } catch (e) {
+        // Error handling for Site Kit update
       }
     }
 
