@@ -15,30 +15,14 @@ class BannerGenerator
 
     public function __construct()
     {
-        \add_action('custom_cookie_rules_updated', [$this, 'update_banner_template']);
-        \add_filter('custom_cookie_consent_banner_template', [$this, 'filter_banner_template']);
-    }
-
-    /**
-     * Initialize the banner generator.
-     * This method is called from the main plugin class.
-     *
-     * @since 1.1.9
-     * @return void
-     */
-    public function init(): void
-    {
-        // Initialize banner template if it doesn't exist
-        $template = \get_option('custom_cookie_banner_template', '');
-        if (empty($template)) {
-            $this->update_banner_template();
-        }
+        add_action('custom_cookie_rules_updated', [$this, 'update_banner_template']);
+        add_filter('custom_cookie_consent_banner_template', [$this, 'filter_banner_template']);
     }
 
     public function update_banner_template()
     {
         // Get all categorized cookies
-        $detected = \get_option('custom_cookie_detected', []);
+        $detected = get_option('custom_cookie_detected', []);
         $categories = [];
 
         // Group cookies by category
@@ -61,11 +45,11 @@ class BannerGenerator
         }
 
         // Get banner settings - force fresh settings (not cached)
-        $settings = \get_option('custom_cookie_settings', []);
+        $settings = get_option('custom_cookie_settings', []);
 
         // Ensure we have the latest translation changes
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            \error_log('Banner Generator: Regenerating template with settings: ' . print_r($settings, true));
+            error_log('Banner Generator: Regenerating template with settings: ' . print_r($settings, true));
         }
 
         // Generate banner template
@@ -79,10 +63,10 @@ class BannerGenerator
         );
 
         // Save the template
-        \update_option('custom_cookie_banner_template', $template);
+        update_option('custom_cookie_banner_template', $template);
 
         // Also update a timestamp option to track when the template was last updated
-        \update_option('custom_cookie_banner_last_updated', time());
+        update_option('custom_cookie_banner_last_updated', time());
     }
 
     public function generate_template($categories, $settings)
@@ -203,14 +187,14 @@ class BannerGenerator
     public function filter_banner_template($template)
     {
         // Always get the latest generated template from the database
-        $generated = \get_option('custom_cookie_banner_template');
+        $generated = get_option('custom_cookie_banner_template');
 
         // If debugging is enabled, add some debug information
         if (defined('WP_DEBUG') && WP_DEBUG) {
             if ($generated) {
-                \error_log('Banner Generator: Using dynamically generated template.');
+                error_log('Banner Generator: Using dynamically generated template.');
             } else {
-                \error_log('Banner Generator: No generated template found, using default.');
+                error_log('Banner Generator: No generated template found, using default.');
             }
         }
 

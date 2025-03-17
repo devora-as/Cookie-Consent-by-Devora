@@ -26,10 +26,7 @@ class CookieCategories
                         '.hsadspixel.net',
                         '.hscollectedforms.net'
                     ]],
-                    ['name' => '_cfuvid', 'domain' => '.hubspot.com'],
-                    ['name' => 'mtm_consent', 'domain' => '*'],
-                    ['name' => 'mtm_consent_removed', 'domain' => '*'],
-                    ['name' => 'MATOMO_SESSID', 'domain' => '*']
+                    ['name' => '_cfuvid', 'domain' => '.hubspot.com']
                 ]
             ],
             'analytics' => [
@@ -38,15 +35,7 @@ class CookieCategories
                 'description' => $settings['analytics_description'] ?? 'Disse informasjonskapslene hjelper oss å forstå hvordan besøkende bruker nettstedet.',
                 'cookies' => [
                     ['name' => 'hubspotutk', 'domain' => '.devora.no'],
-                    ['name' => '__hstc', 'domain' => '.devora.no'],
-                    ['name' => '_ga', 'domain' => '*'],
-                    ['name' => '_gid', 'domain' => '*'],
-                    ['name' => '_gat', 'domain' => '*'],
-                    ['name' => '_pk_id', 'domain' => '*'],
-                    ['name' => '_pk_ses', 'domain' => '*'],
-                    ['name' => '_pk_ref', 'domain' => '*'],
-                    ['name' => '_pk_cvar', 'domain' => '*'],
-                    ['name' => '_pk_hsr', 'domain' => '*']
+                    ['name' => '__hstc', 'domain' => '.devora.no']
                 ]
             ],
             'functional' => [
@@ -54,10 +43,7 @@ class CookieCategories
                 'title' => $settings['functional_title'] ?? 'Funksjonell',
                 'description' => $settings['functional_description'] ?? 'Disse informasjonskapslene gjør at nettstedet kan gi forbedret funksjonalitet og personlig tilpasning.',
                 'cookies' => [
-                    ['name' => '_lscache_vary', 'domain' => '.devora.no'],
-                    ['name' => '_mtm_testing', 'domain' => '*'],
-                    ['name' => 'mtmPreviewMode', 'domain' => '*'],
-                    ['name' => 'mtmDebugMode', 'domain' => '*']
+                    ['name' => '_lscache_vary', 'domain' => '.devora.no']
                 ]
             ],
             'marketing' => [

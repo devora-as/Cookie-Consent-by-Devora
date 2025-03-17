@@ -1,42 +1,69 @@
-# OS generated files
+# Operating System files
 .DS_Store
-.DS_Store?
+Thumbs.db
 ._*
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db
+Desktop.ini
 
-# IDE/Editor folders
-.idea/
-.vscode/
+# Editor directories and files
+.idea
+.vscode
+.cursor/
+.cursorrules
 *.sublime-project
 *.sublime-workspace
-.cursor/
+*.code-workspace
+
+# Composer
+/vendor/
+composer.lock
+
+# Node.js
+/node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Build files
+/build/
+/dist/
+
+# WordPress local development
+/wp-config-local.php
+
+# Log files
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Backup files
+*.bak
+*.backup
+*.zip
+*.tar
+*.tar.gz
+*.gz
+*.sql
+
+# Temporary files
+*.tmp
+*.swp
 
 # WordPress Core files that might be included accidentally
 wp-admin/
 wp-includes/
 wp-content/uploads/
 
-# Node dependency directories
-node_modules/
-npm-debug.log
-
 # Dependency directories
-/vendor/
 /bower_components/
 
-# Composer
-composer.phar
-/vendor/
-
-# Build outputs
-/dist/
-/build/
-
 # Log files
-*.log
 error_log
 access_log
 
@@ -44,29 +71,24 @@ access_log
 /cache/
 *.cache
 
-# Environment files
-.env
-.env.*
-!.env.example
-
 # Temporary files
 tmp/
 temp/
-*.tmp
-*.bak
-*.swp
 
 # Testing related
 /phpunit.xml
 .phpunit.result.cache
+test-plugin.php
+fixes.txt
 
 # Translation related files
-# Include only compiled .mo files in your repo
-# *.pot
-# *.po
-# languages/debug.log
+# Only include compiled .mo files, exclude debug logs
+languages/debug.log
 
-# Other common exclusions
+# Other
 *.sql
 *.tar.gz
-*.zip 
+*.zip
+
+# Old plugin update checker (replaced by GitHub Updater)
+includes/plugin-update-checker/ 

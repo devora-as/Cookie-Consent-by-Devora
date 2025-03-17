@@ -80,49 +80,6 @@ class Integrations
                 ['name' => 'hubspotutk', 'category' => 'marketing']
             ]
         ];
-
-        // Matomo Analytics - WordPress Plugin (On-Premise)
-        $this->known_integrations['matomo-wp'] = [
-            'name' => 'Matomo Analytics (WordPress)',
-            'detector' => 'defined("MATOMO_PLUGIN_FILE") || class_exists("\\Matomo\\WpMatomo")',
-            'cookies' => [
-                ['name' => '_pk_id', 'category' => 'analytics', 'pattern' => true],
-                ['name' => '_pk_ses', 'category' => 'analytics', 'pattern' => true],
-                ['name' => '_pk_ref', 'category' => 'analytics', 'pattern' => true],
-                ['name' => '_pk_cvar', 'category' => 'analytics', 'pattern' => true],
-                ['name' => '_pk_hsr', 'category' => 'analytics', 'pattern' => true],
-                ['name' => 'mtm_consent', 'category' => 'necessary'],
-                ['name' => 'mtm_consent_removed', 'category' => 'necessary']
-            ]
-        ];
-
-        // Matomo Analytics - Cloud/Self-hosted (via JavaScript)
-        $this->known_integrations['matomo-cloud'] = [
-            'name' => 'Matomo Analytics (Cloud/Self-hosted)',
-            'detector' => 'function_exists("add_matomo_site") || class_exists("MatomoTracker")',
-            'cookies' => [
-                ['name' => '_pk_id', 'category' => 'analytics', 'pattern' => true],
-                ['name' => '_pk_ses', 'category' => 'analytics', 'pattern' => true],
-                ['name' => '_pk_ref', 'category' => 'analytics', 'pattern' => true],
-                ['name' => '_pk_cvar', 'category' => 'analytics', 'pattern' => true],
-                ['name' => '_pk_hsr', 'category' => 'analytics', 'pattern' => true],
-                ['name' => 'MATOMO_SESSID', 'category' => 'necessary'],
-                ['name' => 'matomo_ignore', 'category' => 'necessary']
-            ]
-        ];
-
-        // Matomo Tag Manager
-        $this->known_integrations['matomo-tag-manager'] = [
-            'name' => 'Matomo Tag Manager',
-            'detector' => '(defined("MATOMO_PLUGIN_FILE") && function_exists("matomo_has_tag_manager")) || class_exists("\\Matomo\\TagManager")',
-            'cookies' => [
-                ['name' => 'mtm_consent', 'category' => 'necessary'],
-                ['name' => 'mtm_consent_removed', 'category' => 'necessary'],
-                ['name' => '_mtm_testing', 'category' => 'functional'],
-                ['name' => 'mtmPreviewMode', 'category' => 'functional'],
-                ['name' => 'mtmDebugMode', 'category' => 'functional']
-            ]
-        ];
     }
 
     public function auto_detect_plugins()
