@@ -302,28 +302,52 @@ while true; do
         echo -e "${GREEN}Error logs cleared. Starting fresh monitoring.${NC}"
     fi
     
+    # Create temporary files for processing
+    diff_output="${TEMP_DIR}/diff_output.txt"
+    changed_files_list="${TEMP_DIR}/changed_files.txt"
+    
     # Get current state - use xargs to handle spaces in filenames
     find "${PROJECT_DIR}" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -print0 | xargs -0 stat -f "%m %N" | sort > "${TEMP_DIR}/phpfiles_state_new.txt"
     
-    # Compare with previous state and handle filenames with spaces properly
-    changed_files=$(diff "${TEMP_DIR}/phpfiles_state.txt" "${TEMP_DIR}/phpfiles_state_new.txt" | grep ">" | sed 's/^> [0-9]* //')
+    # Process diff output more carefully to handle filenames with spaces
+    # Generate diff output
+    diff "${TEMP_DIR}/phpfiles_state.txt" "${TEMP_DIR}/phpfiles_state_new.txt" > "${diff_output}"
     
-    if [ ! -z "${changed_files}" ]; then
-        # Use read with IFS=\n to handle filenames with spaces properly
-        echo "${changed_files}" | while IFS= read -r file; do
+    # Reset changed files list
+    > "${changed_files_list}"
+    
+    # Extract filenames more carefully - only process lines starting with "> "
+    grep "^> " "${diff_output}" | while IFS= read -r line; do
+        # Remove the "> " prefix and the timestamp at the beginning
+        echo "${line}" | sed 's/^> [0-9]* //' >> "${changed_files_list}"
+    done
+    
+    # Process each changed file
+    if [ -s "${changed_files_list}" ]; then
+        while IFS= read -r file; do
             # Skip if file is empty or just whitespace
             if [ -z "$(echo "${file}" | tr -d '[:space:]')" ]; then
                 continue
             fi
+            
+            # Skip .git directory files
+            if [[ "${file}" == *"/.git/"* ]]; then
+                echo -e "${YELLOW}Skipping Git file: ${file}${NC}"
+                continue
+            fi
+            
             run_tests "${file}"
             
             # Append error history for reference
             cat "${ERROR_LOG}" >> "${ERROR_HISTORY}"
-        done
+        done < "${changed_files_list}"
         
         # Update previous state for next comparison
         mv "${TEMP_DIR}/phpfiles_state_new.txt" "${TEMP_DIR}/phpfiles_state.txt"
     fi
+    
+    # Clean up temporary files
+    rm -f "${diff_output}" "${changed_files_list}"
     
     # Display remaining errors summary, if any
     if [ -s "${ERROR_LOG}" ]; then
