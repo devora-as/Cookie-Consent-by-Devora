@@ -59,6 +59,15 @@ class AdminInterface
             'custom-cookie-translations',
             [$this, 'render_translations_page']
         );
+
+        add_submenu_page(
+            'custom-cookie-consent',
+            __('Analytics & Statistics', 'custom-cookie-consent'),
+            __('Analytics & Statistics', 'custom-cookie-consent'),
+            'manage_options',
+            'custom-cookie-analytics',
+            [$this, 'render_analytics_page']
+        );
     }
 
     public function enqueue_admin_assets($hook)
@@ -108,6 +117,17 @@ class AdminInterface
                 'bulkCategorized' => esc_html__('Cookies categorized successfully', 'custom-cookie-consent')
             ]
         ]);
+
+        // Load Chart.js for analytics page
+        if ($hook === 'cookie-consent_page_custom-cookie-analytics') {
+            wp_enqueue_script(
+                'chartjs',
+                'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
+                [],
+                '4.4.1',
+                true
+            );
+        }
     }
 
     public function render_main_page()
@@ -179,6 +199,14 @@ class AdminInterface
         $settings = get_option('custom_cookie_settings', []);
 
         include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/translations.php';
+    }
+
+    /**
+     * Render the analytics page
+     */
+    public function render_analytics_page()
+    {
+        include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/analytics.php';
     }
 
     public function ajax_categorize_cookie()

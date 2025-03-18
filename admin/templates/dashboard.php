@@ -73,6 +73,9 @@ $categorizedCookies = $totalCookies - $categoryCounts['uncategorized'];
         <a href="<?php echo admin_url('admin.php?page=custom-cookie-translations'); ?>">
             <?php _e('Text & Translations', 'custom-cookie-consent'); ?>
         </a>
+        <a href="<?php echo admin_url('admin.php?page=custom-cookie-analytics'); ?>">
+            <?php _e('Analytics & Statistics', 'custom-cookie-consent'); ?>
+        </a>
     </div>
 
     <div class="cookie-consent-admin-card">

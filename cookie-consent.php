@@ -37,6 +37,9 @@ if (!defined('WPINC')) {
 // Define plugin version
 define('CUSTOM_COOKIE_VERSION', '1.2.0');
 
+// Define plugin database version
+define('CUSTOM_COOKIE_DB_VERSION', '1.0');
+
 // Require dependencies
 require_once plugin_dir_path(__FILE__) . 'includes/class-cookie-categories.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-cookie-scanner.php';
@@ -45,6 +48,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-integrations.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-banner-generator.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-wp-consent-wrapper.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-github-updater.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-consent-logger.php';
 
 /**
  * Custom Cookie Consent Plugin
@@ -180,6 +184,9 @@ class CookieConsent
 
         // Schema.org structured data
         add_action('wp_head', [$this, 'output_consent_schema']);
+
+        // Register activation hook
+        register_activation_hook(__FILE__, [$this, 'activate']);
     }
 
     /**
@@ -189,6 +196,9 @@ class CookieConsent
      */
     public function init(): void
     {
+        // Check if database needs updating
+        $this->maybe_update_db_schema();
+
         // Register admin scripts and styles
         add_action('admin_enqueue_scripts', function ($hook) {
             if (strpos($hook, 'custom-cookie') !== false) {
@@ -1886,6 +1896,10 @@ class CookieConsent
             }
         }
 
+        // Log the consent data to the database
+        $consent_logger = new ConsentLogger();
+        $consent_logger->log_consent($consent_data, isset($_POST['source']) ? sanitize_text_field($_POST['source']) : 'banner');
+
         // Update the WP Consent API if available
         if (!empty($this->settings['wp_consent_api'])) {
             // Register the consent for each category
@@ -1977,6 +1991,37 @@ class CookieConsent
         wp_send_json_success([
             'data' => $consent_data
         ]);
+    }
+
+    /**
+     * Plugin activation handler
+     */
+    public function activate(): void
+    {
+        // Check if we need to update the database schema
+        $this->maybe_update_db_schema();
+
+        // Trigger action for other components to hook into
+        do_action('custom_cookie_consent_activate');
+    }
+
+    /**
+     * Check and update database schema if needed
+     */
+    private function maybe_update_db_schema(): void
+    {
+        $db_version = get_option('custom_cookie_db_version', '0');
+
+        // If database version is current, no need to update
+        if (version_compare($db_version, CUSTOM_COOKIE_DB_VERSION, '>=')) {
+            return;
+        }
+
+        // Trigger database table creation
+        do_action('custom_cookie_consent_activate');
+
+        // Update the database version option
+        update_option('custom_cookie_db_version', CUSTOM_COOKIE_DB_VERSION);
     }
 }
 

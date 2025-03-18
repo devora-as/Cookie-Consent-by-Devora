@@ -38,6 +38,9 @@ if (!defined('ABSPATH')) {
         <a href="<?php echo esc_url(admin_url('admin.php?page=custom-cookie-translations')); ?>">
             <?php esc_html_e('Text & Translations', 'custom-cookie-consent'); ?>
         </a>
+        <a href="<?php echo esc_url(admin_url('admin.php?page=custom-cookie-analytics')); ?>">
+            <?php esc_html_e('Analytics & Statistics', 'custom-cookie-consent'); ?>
+        </a>
     </div>
 
     <div class="cookie-consent-admin-card">

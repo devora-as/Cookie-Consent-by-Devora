@@ -810,7 +810,7 @@ class ConsentManager {
       consentData: consentData,
     });
 
-    // Create form data
+    // Create form data for regular consent storage
     const formData = new FormData();
     formData.append("action", "save_cookie_consent");
     formData.append(
@@ -819,7 +819,7 @@ class ConsentManager {
     );
     formData.append("consent_data", JSON.stringify(consentData));
 
-    // Send the data
+    // Send the data for user-specific storage
     fetch(window.cookieConsentSettings.ajaxUrl, {
       method: "POST",
       credentials: "same-origin",
@@ -837,6 +837,49 @@ class ConsentManager {
       .catch((error) => {
         console.error("Error saving consent data:", error);
       });
+
+    // Create separate form data for consent logging
+    const logFormData = new FormData();
+    logFormData.append("action", "custom_cookie_log_consent");
+    logFormData.append(
+      "nonce",
+      document.querySelector('meta[name="cookie_consent_nonce"]')?.content || ""
+    );
+    logFormData.append("consent_data", JSON.stringify(consentData));
+    logFormData.append("source", this.getConsentSource());
+
+    // Send the data to the logging endpoint
+    fetch(window.cookieConsentSettings.ajaxUrl, {
+      method: "POST",
+      credentials: "same-origin",
+      body: logFormData,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        this.debugLog("Consent logging response:", data);
+      })
+      .catch((error) => {
+        console.error("Error logging consent data:", error);
+      });
+  }
+
+  /**
+   * Determine the source of the consent action
+   *
+   * @returns {string} The source of the consent (banner, settings, link, etc.)
+   */
+  getConsentSource() {
+    // Check if consent was given through the settings panel
+    if (document.querySelector(".cookie-settings-view.active")) {
+      return "settings";
+    }
+
+    // Check if consent was given through the banner
+    if (document.querySelector(".cookie-consent-banner:not(.hidden)")) {
+      return "banner";
+    }
+
+    return "other";
   }
 
   // Emergency fallback method if cookie setting fails

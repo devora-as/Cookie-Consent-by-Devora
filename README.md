@@ -645,3 +645,211 @@ The plugin automatically adds a cookie consent banner to your website.
 ## Documentation
 
 For full documentation, please visit the [plugin website](https://devora.no/plugins/cookie-consent).
+
+## Development and Testing
+
+This plugin uses automated testing to maintain code quality and ensure proper functionality. Follow these steps to set up your development environment:
+
+### Prerequisites
+
+- PHP 7.4 or higher
+- Composer
+- Node.js and npm (for accessibility testing)
+- MySQL/MariaDB for WordPress test installation
+
+### Setup
+
+1. Clone the repository
+2. Run the setup script:
+
+```bash
+composer run setup
+```
+
+This will:
+
+- Install Composer dependencies
+- Set up WordPress test environment
+- Install PHP Mess Detector
+- Install WP-CLI if not already present
+- Install Pa11y for accessibility testing (requires npm)
+
+### Running Tests
+
+```bash
+composer run test        # Run PHPUnit tests
+composer run phpcs       # Run PHP CodeSniffer
+composer run phpcbf      # Fix automatically fixable coding standards issues
+composer run phpmd       # Run PHP Mess Detector
+composer run run-tests   # Run all tests including PHPUnit, PHPCS, and PHPMD
+```
+
+### Accessibility Testing
+
+To run accessibility tests with Pa11y:
+
+```bash
+./tools/run-a11y-tests.sh
+```
+
+This will:
+
+1. Start a local WordPress instance if not already running
+2. Run Pa11y against the site to check for WCAG 2.2 compliance
+3. Generate a report of any accessibility issues
+
+### Git Hooks
+
+Install git hooks to automatically run tests before committing:
+
+```bash
+./tools/install-git-hooks.sh
+```
+
+This will install:
+
+- pre-commit hook to run PHP CodeSniffer and PHPUnit tests
+
+### Continuous Integration
+
+GitHub Actions workflows are set up to run tests on push and pull requests:
+
+- PHPUnit tests run on multiple PHP and WordPress versions
+- PHP CodeSniffer checks for coding standards compliance
+- Accessibility tests check for WCAG 2.2 compliance
+
+## Automated Development Workflow
+
+This plugin uses a fully automated development workflow with Cursor IDE in Agent mode:
+
+### Automated Workflow Steps
+
+1. **Code Editing**:
+
+   - Write or change code in Cursor with Agent mode enabled
+   - Let Cursor Agent suggest optimizations and improvements
+
+2. **Continuous Testing**:
+
+   - Automatic test running when files are saved (using the file watcher)
+   - Test failures are detected and reported in real-time
+
+3. **Automated Error Correction**:
+
+   - Cursor Agent analyzes test failures and linting errors
+   - Automatically suggests fixes for common issues
+   - Apply suggestions directly in the editor
+
+4. **Documentation Generation**:
+
+   - Cursor Agent can help generate PHPDoc comments
+   - Automatically creates documentation for functions and classes
+
+5. **Commit Automation**:
+   - Git pre-commit hooks run tests before allowing commits
+   - Automatic generation of commit message templates
+   - Integrated Git support in Cursor
+
+### Setting Up the Workflow
+
+To start the automated workflow:
+
+```bash
+# Start the file watcher to run tests on save
+./tools/watch-and-test.sh
+
+# Generate test file for a specific PHP class
+php tools/generate-tests.php path/to/your/class-file.php
+```
+
+### Cursor Agent Settings
+
+The Cursor Agent is configured to:
+
+- Run tests automatically
+- Fix common errors and coding standards violations
+- Generate documentation comments
+- Suggest optimizations
+- Help with accessibility improvements
+
+## Testing & Automation Workflow
+
+The plugin includes a comprehensive testing and automation workflow designed to make development more efficient and ensure code quality. This system integrates with Cursor IDE for a seamless experience.
+
+### Setup
+
+1. Install the development dependencies:
+
+```bash
+composer install
+```
+
+2. Set up the development environment:
+
+```bash
+composer run setup-dev
+```
+
+3. Install git hooks for pre-commit checks:
+
+```bash
+composer run install-hooks
+```
+
+4. Set up E2E testing:
+
+```bash
+composer run setup-e2e
+```
+
+### Testing Workflow
+
+The testing workflow is fully automated in Cursor with the following steps:
+
+1. **Write or change code** in Cursor
+2. **Save the files** - Cursor automatically runs tests (PHPUnit, PHPCS, PHPMD)
+3. **Cursor Agent analyzes** the test results
+4. If errors occur, **Cursor automatically suggests corrections**
+5. **Approve** the suggestions in Cursor
+6. The code is **automatically corrected**, tests are run again
+7. If successful, **commit** the changes with integrated Git support
+
+### Available Testing Commands
+
+| Command                      | Description                               |
+| ---------------------------- | ----------------------------------------- |
+| `composer run test`          | Run PHPUnit tests                         |
+| `composer run phpcs`         | Run PHP CodeSniffer                       |
+| `composer run phpmd`         | Run PHP Mess Detector                     |
+| `composer run run-tests`     | Run all PHP tests (PHPUnit, PHPCS, PHPMD) |
+| `composer run a11y-test`     | Run accessibility tests with Pa11y        |
+| `composer run setup-e2e`     | Set up Cypress for E2E testing            |
+| `composer run test:e2e`      | Run E2E tests with Cypress                |
+| `composer run test:all`      | Run all tests (PHP, accessibility, E2E)   |
+| `composer run auto-fix`      | Automatically fix common issues           |
+| `composer run generate-test` | Generate tests for a PHP file             |
+
+### Automatic Error Correction
+
+The system can automatically fix several types of issues:
+
+1. **PHP coding standards** via PHPCBF
+2. **Database operations** missing error handling
+3. **Accessibility issues** in output HTML
+4. **Deprecated functions** detection
+5. **Security issues** like unsanitized input
+
+### Testing Configuration Files
+
+- `phpunit.xml.dist` - PHPUnit configuration
+- `.cursor/settings.json` - Cursor IDE integration
+- `tools/phpmd-ruleset.xml` - PHP Mess Detector rules
+- `cypress.config.js` - Cypress E2E testing configuration
+
+### Integration with CI/CD
+
+GitHub Actions workflows are set up to run tests on push and pull requests:
+
+- Tests run on multiple PHP and WordPress versions
+- Accessibility tests verify WCAG compliance
+- E2E tests ensure functionality works as expected
