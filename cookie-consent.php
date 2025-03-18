@@ -49,6 +49,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-banner-generator.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-wp-consent-wrapper.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-github-updater.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-consent-logger.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-open-cookie-database.php';
 
 /**
  * Custom Cookie Consent Plugin
@@ -93,6 +94,11 @@ class CookieConsent
     private $banner_generator;
 
     /**
+     * @var OpenCookieDatabase
+     */
+    private $open_cookie_db;
+
+    /**
      * @var array
      */
     private $settings;
@@ -120,6 +126,9 @@ class CookieConsent
         $this->admin_interface = new AdminInterface();
         $this->integrations = new Integrations();
         $this->banner_generator = new BannerGenerator();
+
+        // Initialize Open Cookie Database integration
+        $this->open_cookie_db = new OpenCookieDatabase();
 
         // Initialize GitHub updater
         if (class_exists('\\CustomCookieConsent\\GitHubUpdater')) {

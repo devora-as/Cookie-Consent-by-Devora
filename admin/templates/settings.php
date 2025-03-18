@@ -97,6 +97,11 @@ if (!defined('ABSPATH')) {
                 </select>
             </div>
 
+            <?php
+            // Allow other components to add fields to scanner settings
+            do_action('custom_cookie_settings_fields', 'scanner_settings');
+            ?>
+
             <input type="submit" name="submit" class="cookie-consent-submit" value="<?php _e('Save Scanner Settings', 'custom-cookie-consent'); ?>">
         </form>
     </div>

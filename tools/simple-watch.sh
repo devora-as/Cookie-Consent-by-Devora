@@ -29,8 +29,22 @@ ERROR_HISTORY="$TEMP_DIR/php_error_history.txt"
 > "$ERROR_LOG"
 > "$ERROR_HISTORY"
 
-# Find PHP in various locations
-if command -v php &> /dev/null; then
+# Set PHP path directly to Local by Flywheel instance
+LOCAL_PHP_PATH="/Users/christian/Library/Application Support/Local/lightning-services/php-8.0.30+0/bin/darwin-arm64/bin/php"
+
+# Check if the specific PHP exists, otherwise fall back to alternatives
+if [ -f "$LOCAL_PHP_PATH" ]; then
+    PHP_CMD="$LOCAL_PHP_PATH"
+    echo -e "${GREEN}Using Local by Flywheel PHP: $PHP_CMD${NC}"
+elif [ -f "/Applications/Local/resources/lightning-services/php-*/bin/php" ]; then
+    # Use wildcard to match any PHP version installed by Local
+    PHP_CMD=$(ls -1 /Applications/Local/resources/lightning-services/php-*/bin/php | sort -r | head -1)
+    echo -e "${GREEN}Found Local by Flywheel PHP: $PHP_CMD${NC}"
+elif [ -f "/Users/Shared/Local Sites/bin/php" ]; then
+    # Alternative location for Local by Flywheel
+    PHP_CMD="/Users/Shared/Local Sites/bin/php"
+    echo -e "${GREEN}Found Local by Flywheel PHP: $PHP_CMD${NC}"
+elif command -v php &> /dev/null; then
     PHP_CMD="php"
 elif [ -f "/usr/bin/php" ]; then
     PHP_CMD="/usr/bin/php"
@@ -41,7 +55,7 @@ elif [ -f "/opt/homebrew/bin/php" ]; then
 else
     # Try to find PHP with mdfind (on macOS)
     if command -v mdfind &> /dev/null; then
-        PHP_PATH=$(mdfind -name 'php' | grep '/bin/php$' | head -1)
+        PHP_PATH=$(mdfind -name 'php' | grep -v 'Dropbox' | grep '/bin/php$' | head -1)
         if [ ! -z "$PHP_PATH" ]; then
             PHP_CMD="$PHP_PATH"
         fi
@@ -51,7 +65,7 @@ else
     if [ -z "$PHP_CMD" ]; then
         echo -e "${YELLOW}Trying to find PHP using alternative methods...${NC}"
         PHPINFO=$(php -i 2>/dev/null | grep 'PHP Binary' | awk '{print $4}')
-        if [ ! -z "$PHPINFO" ]; then
+        if [ ! -z "$PHPINFO" ] && [[ "$PHPINFO" != *"Dropbox"* ]]; then
             PHP_CMD="$PHPINFO"
         else
             # Last resort - use env to run with the current shell's environment
@@ -99,7 +113,7 @@ function run_phpcs_safely() {
     local output_file="$2"
     
     # Use a simple report format to avoid vsprintf errors
-    $PHP_CMD "$PROJECT_DIR/vendor/bin/phpcs" --standard=WordPress --report=summary "$file" > "$output_file" 2>&1
+    "$PHP_CMD" "$PROJECT_DIR/vendor/bin/phpcs" --standard=WordPress --report=summary "$file" > "$output_file" 2>&1
     return $?
 }
 
@@ -115,7 +129,7 @@ function run_phpunit_safely() {
     fi
     
     # Run the tests
-    $PHP_CMD "$PROJECT_DIR/vendor/bin/phpunit" > "$output_file" 2>&1
+    "$PHP_CMD" "$PROJECT_DIR/vendor/bin/phpunit" > "$output_file" 2>&1
     return $?
 }
 
@@ -134,7 +148,7 @@ function run_tests() {
     
     # Run PHP syntax check first
     echo -e "${YELLOW}Checking PHP syntax...${NC}"
-    if $PHP_CMD -l "$file" > "$temp_error_log" 2>&1; then
+    if "$PHP_CMD" -l "$file" > "$temp_error_log" 2>&1; then
         echo -e "${GREEN}✓ PHP syntax is valid${NC}"
     else
         echo -e "${RED}✗ PHP syntax error:${NC}"
@@ -175,7 +189,7 @@ function run_tests() {
     # Try auto-fix if errors were found
     if [ "$current_errors" = true ]; then
         echo -e "\n${YELLOW}Attempting to auto-fix issues...${NC}"
-        $PHP_CMD "$PROJECT_DIR/tools/auto-fix.php" "$file" > /dev/null 2>&1 || true
+        "$PHP_CMD" "$PROJECT_DIR/tools/auto-fix.php" "$file" > /dev/null 2>&1 || true
         echo -e "${BLUE}Re-running tests after auto-fix...${NC}"
         
         # Re-run PHPCS to see if errors were fixed
@@ -196,7 +210,7 @@ function run_tests() {
     
     # Run phpcbf on the file to attempt to fix coding standards
     echo -e "\n${YELLOW}Running PHPCBF to auto-fix coding standards...${NC}"
-    $PHP_CMD "$PROJECT_DIR/vendor/bin/phpcbf" --standard=WordPress "$file" > /dev/null 2>&1 || true
+    "$PHP_CMD" "$PROJECT_DIR/vendor/bin/phpcbf" --standard=WordPress "$file" > /dev/null 2>&1 || true
     
     # Separator for readability
     echo -e "${BLUE}-----------------------------------------------------------${NC}"

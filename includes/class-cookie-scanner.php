@@ -352,12 +352,13 @@ class CookieScanner
         foreach ($patterns as $category => $regexes) {
             foreach ($regexes as $regex) {
                 if (preg_match($regex, $cookie_name)) {
-                    return $category;
+                    return apply_filters('custom_cookie_auto_categorize', $category, $cookie_name);
                 }
             }
         }
 
-        return 'uncategorized';
+        // If no pattern match, let external databases try to categorize
+        return apply_filters('custom_cookie_auto_categorize', 'uncategorized', $cookie_name);
     }
 
     // JavaScript component to detect cookies on the frontend

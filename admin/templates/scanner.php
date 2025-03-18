@@ -182,6 +182,24 @@ if (!defined('ABSPATH')) {
             <li><?php echo wp_kses(__('<strong>Manual Scanning:</strong> Trigger a manual scan to actively look for cookies.', 'custom-cookie-consent'), ['strong' => []]); ?></li>
             <li><?php echo wp_kses(__('<strong>Pattern Recognition:</strong> Common cookies are automatically categorized based on naming patterns.', 'custom-cookie-consent'), ['strong' => []]); ?></li>
             <li><?php echo wp_kses(__('<strong>Integration Detection:</strong> Popular plugins and their cookies are automatically recognized.', 'custom-cookie-consent'), ['strong' => []]); ?></li>
+            <?php
+            // Check if Open Cookie Database is enabled
+            $settings = get_option('custom_cookie_settings', []);
+            $ocd_enabled = isset($settings['enable_ocd']) && $settings['enable_ocd'] === '1';
+            if ($ocd_enabled):
+                $last_update = get_transient('custom_cookie_ocd_last_update');
+                $update_date = $last_update ? date_i18n(get_option('date_format'), $last_update) : __('Never', 'custom-cookie-consent');
+            ?>
+                <li><?php echo wp_kses(__('<strong>Open Cookie Database:</strong> Enhanced cookie categorization using the comprehensive Open Cookie Database.', 'custom-cookie-consent'), ['strong' => []]); ?>
+                    <?php printf(
+                        /* translators: %s: date when the database was last updated */
+                        esc_html__('Last updated: %s', 'custom-cookie-consent'),
+                        esc_html($update_date)
+                    ); ?>
+                </li>
+            <?php else: ?>
+                <li><?php echo wp_kses(__('<strong>Open Cookie Database:</strong> Not enabled. Enable this feature in the settings for enhanced cookie recognition.', 'custom-cookie-consent'), ['strong' => []]); ?></li>
+            <?php endif; ?>
         </ol>
 
         <p><?php esc_html_e('For best results, browse your site as an admin user after enabling all features and plugins, including any external scripts that might set cookies.', 'custom-cookie-consent'); ?></p>

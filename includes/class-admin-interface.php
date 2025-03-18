@@ -94,12 +94,27 @@ class AdminInterface
             true
         );
 
+        // Enqueue Open Cookie Database script for settings page
+        if (strpos($hook, 'custom-cookie-settings') !== false) {
+            wp_enqueue_script(
+                'custom-cookie-database-js',
+                plugin_dir_url(dirname(__FILE__)) . 'admin/js/cookie-database.js',
+                ['jquery', 'custom-cookie-admin-js'],
+                defined('WP_DEBUG') && WP_DEBUG ? time() : CUSTOM_COOKIE_VERSION,
+                true
+            );
+        }
+
         // Localize script with settings and translations
-        wp_localize_script('custom-cookie-admin-js', 'customCookieAdminSettings', [
+        wp_localize_script('custom-cookie-admin-js', 'cookieConsentAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('cookie_management'),
             'scanNonce' => wp_create_nonce('cookie_scan'),
             'debug' => defined('WP_DEBUG') && WP_DEBUG,
+            'updating_text' => esc_html__('Updating...', 'custom-cookie-consent'),
+            'update_now_text' => esc_html__('Update Now', 'custom-cookie-consent'),
+            'update_complete_text' => esc_html__('Update Complete', 'custom-cookie-consent'),
+            'ajax_error_text' => esc_html__('An error occurred during the update', 'custom-cookie-consent'),
             'messages' => [
                 /* translators: Message shown when cookie scan completes successfully */
                 'scanComplete' => esc_html__('Cookie scan completed successfully', 'custom-cookie-consent'),
