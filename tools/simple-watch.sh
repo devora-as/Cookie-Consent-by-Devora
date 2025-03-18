@@ -86,6 +86,19 @@ if [ ! -f "${WP_CLI}" ]; then
     fi
 fi
 
+# Function to ensure path is absolute
+function ensure_absolute_path() {
+    local path="$1"
+    if [[ "$path" != /* ]]; then
+        # If not absolute, prepend PROJECT_DIR
+        path="${PROJECT_DIR}/${path}"
+    fi
+    
+    # Clean up any double slashes
+    path=$(echo "$path" | sed 's|//|/|g')
+    echo "$path"
+}
+
 # Function to check for git commits
 function check_for_commits() {
     local current_commit=$(cd "${PROJECT_DIR}" && git rev-parse HEAD 2>/dev/null || echo "none")
@@ -112,10 +125,20 @@ function run_phpcs_safely() {
     local file="$1"
     local output_file="$2"
     
-    # Use a simple report format to avoid vsprintf errors
-    # Use eval with proper quoting to handle paths with spaces
-    eval "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpcs" --standard=WordPress --report=summary "\"${file}\"" > "${output_file}" 2>&1
-    return $?
+    # Ensure file path is absolute
+    file=$(ensure_absolute_path "$file")
+    
+    # Create a temporary shell script to run the command
+    local script_file="${TEMP_DIR}/run_phpcs_$$.sh"
+    echo "#!/bin/bash" > "$script_file"
+    echo "\"${PHP_CMD}\" \"${PROJECT_DIR}/vendor/bin/phpcs\" --standard=WordPress --report=summary \"${file}\"" >> "$script_file"
+    chmod +x "$script_file"
+    
+    # Execute the script
+    "$script_file" > "${output_file}" 2>&1
+    local result=$?
+    rm -f "$script_file"
+    return $result
 }
 
 # Function to run PHPUnit safely
@@ -123,20 +146,35 @@ function run_phpunit_safely() {
     local file="$1"
     local output_file="$2"
     
+    # Ensure file path is absolute
+    file=$(ensure_absolute_path "$file")
+    
     # When running WP tests, make sure the WP test lib is installed
     if [ ! -d "/tmp/wordpress-tests-lib" ] && [ -f "${PROJECT_DIR}/bin/install-wp-tests.sh" ]; then
         echo -e "${YELLOW}WordPress test library not found. Installing...${NC}"
         bash "${PROJECT_DIR}/bin/install-wp-tests.sh" wordpress_test root root localhost latest
     fi
     
-    # Run the tests with proper quoting for paths with spaces
-    eval "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpunit" --filter="$(basename "${file}" .php)" > "${output_file}" 2>&1
-    return $?
+    # Create a temporary shell script to run the command
+    local script_file="${TEMP_DIR}/run_phpunit_$$.sh"
+    echo "#!/bin/bash" > "$script_file"
+    echo "\"${PHP_CMD}\" \"${PROJECT_DIR}/vendor/bin/phpunit\" --filter=\"$(basename "${file}" .php)\"" >> "$script_file"
+    chmod +x "$script_file"
+    
+    # Execute the script
+    "$script_file" > "${output_file}" 2>&1
+    local result=$?
+    rm -f "$script_file"
+    return $result
 }
 
 # Function to run tests and track errors
 function run_tests() {
     local file="$1"
+    
+    # Ensure file path is absolute
+    file=$(ensure_absolute_path "$file")
+    
     local filename=$(basename "${file}")
     local temp_error_log="${TEMP_DIR}/temp_error_log.txt"
     local current_errors=false
@@ -154,16 +192,22 @@ function run_tests() {
     # Clear temp error log
     > "${temp_error_log}"
     
-    # Run PHP syntax check first - use a more precise command for paths with spaces
+    # Run PHP syntax check first - create a temporary shell script
     echo -e "${YELLOW}Checking PHP syntax...${NC}"
-    # Use eval to ensure proper quoting for paths with spaces
-    if eval "${PHP_CMD}" -l "\"${file}\"" > "${temp_error_log}" 2>&1; then
+    local syntax_script="${TEMP_DIR}/check_syntax_$$.sh"
+    echo "#!/bin/bash" > "$syntax_script"
+    echo "\"${PHP_CMD}\" -l \"${file}\"" >> "$syntax_script"
+    chmod +x "$syntax_script"
+
+    if "$syntax_script" > "${temp_error_log}" 2>&1; then
         echo -e "${GREEN}✓ PHP syntax is valid${NC}"
+        rm -f "$syntax_script"
     else
         echo -e "${RED}✗ PHP syntax error:${NC}"
         cat "${temp_error_log}"
         echo -e "${file}: PHP syntax error on $(date)" >> "${ERROR_LOG}"
         current_errors=true
+        rm -f "$syntax_script"
         
         # Don't continue with other tests if syntax is invalid
         echo -e "${BLUE}Skipping additional tests due to syntax error${NC}"
@@ -198,7 +242,15 @@ function run_tests() {
     # Try auto-fix if errors were found
     if [ "${current_errors}" = true ]; then
         echo -e "\n${YELLOW}Attempting to auto-fix issues...${NC}"
-        eval "${PHP_CMD}" "${PROJECT_DIR}/tools/auto-fix.php" "\"${file}\"" > /dev/null 2>&1 || true
+        
+        # Create and run auto-fix script
+        local autofix_script="${TEMP_DIR}/auto_fix_$$.sh"
+        echo "#!/bin/bash" > "$autofix_script"
+        echo "\"${PHP_CMD}\" \"${PROJECT_DIR}/tools/auto-fix.php\" \"${file}\"" >> "$autofix_script"
+        chmod +x "$autofix_script"
+        "$autofix_script" > /dev/null 2>&1 || true
+        rm -f "$autofix_script"
+        
         echo -e "${BLUE}Re-running tests after auto-fix...${NC}"
         
         # Re-run PHPCS to see if errors were fixed
@@ -219,14 +271,21 @@ function run_tests() {
     
     # Run phpcbf on the file to attempt to fix coding standards
     echo -e "\n${YELLOW}Running PHPCBF to auto-fix coding standards...${NC}"
-    eval "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpcbf" --standard=WordPress "\"${file}\"" > /dev/null 2>&1 || true
+    
+    # Create and run phpcbf script
+    local phpcbf_script="${TEMP_DIR}/phpcbf_$$.sh"
+    echo "#!/bin/bash" > "$phpcbf_script"
+    echo "\"${PHP_CMD}\" \"${PROJECT_DIR}/vendor/bin/phpcbf\" --standard=WordPress \"${file}\"" >> "$phpcbf_script"
+    chmod +x "$phpcbf_script"
+    "$phpcbf_script" > /dev/null 2>&1 || true
+    rm -f "$phpcbf_script"
     
     # Separator for readability
     echo -e "${BLUE}-----------------------------------------------------------${NC}"
 }
 
-# Get initial state of PHP files
-find "${PROJECT_DIR}" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -exec stat -f "%m %N" {} \; | sort > "${TEMP_DIR}/phpfiles_state.txt"
+# Get initial state of PHP files - use xargs to handle spaces in filenames
+find "${PROJECT_DIR}" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -print0 | xargs -0 stat -f "%m %N" | sort > "${TEMP_DIR}/phpfiles_state.txt"
 
 # Initialize git commit tracking
 check_for_commits
@@ -243,11 +302,11 @@ while true; do
         echo -e "${GREEN}Error logs cleared. Starting fresh monitoring.${NC}"
     fi
     
-    # Get current state
-    find "${PROJECT_DIR}" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -exec stat -f "%m %N" {} \; | sort > "${TEMP_DIR}/phpfiles_state_new.txt"
+    # Get current state - use xargs to handle spaces in filenames
+    find "${PROJECT_DIR}" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -print0 | xargs -0 stat -f "%m %N" | sort > "${TEMP_DIR}/phpfiles_state_new.txt"
     
-    # Compare with previous state
-    changed_files=$(diff "${TEMP_DIR}/phpfiles_state.txt" "${TEMP_DIR}/phpfiles_state_new.txt" | grep ">" | cut -d' ' -f3-)
+    # Compare with previous state and handle filenames with spaces properly
+    changed_files=$(diff "${TEMP_DIR}/phpfiles_state.txt" "${TEMP_DIR}/phpfiles_state_new.txt" | grep ">" | sed 's/^> [0-9]* //')
     
     if [ ! -z "${changed_files}" ]; then
         # Use read with IFS=\n to handle filenames with spaces properly
