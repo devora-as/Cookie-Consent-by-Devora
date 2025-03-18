@@ -113,7 +113,7 @@ function run_phpcs_safely() {
     local output_file="$2"
     
     # Use a simple report format to avoid vsprintf errors
-    "$PHP_CMD" "$PROJECT_DIR/vendor/bin/phpcs" --standard=WordPress --report=summary "$file" > "$output_file" 2>&1
+    "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpcs" --standard=WordPress --report=summary "${file}" > "${output_file}" 2>&1
     return $?
 }
 
@@ -123,13 +123,13 @@ function run_phpunit_safely() {
     local output_file="$2"
     
     # When running WP tests, make sure the WP test lib is installed
-    if [ ! -d "/tmp/wordpress-tests-lib" ] && [ -f "$PROJECT_DIR/bin/install-wp-tests.sh" ]; then
+    if [ ! -d "/tmp/wordpress-tests-lib" ] && [ -f "${PROJECT_DIR}/bin/install-wp-tests.sh" ]; then
         echo -e "${YELLOW}WordPress test library not found. Installing...${NC}"
-        bash "$PROJECT_DIR/bin/install-wp-tests.sh" wordpress_test root root localhost latest
+        bash "${PROJECT_DIR}/bin/install-wp-tests.sh" wordpress_test root root localhost latest
     fi
     
     # Run the tests
-    "$PHP_CMD" "$PROJECT_DIR/vendor/bin/phpunit" > "$output_file" 2>&1
+    "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpunit" > "${output_file}" 2>&1
     return $?
 }
 
@@ -148,12 +148,12 @@ function run_tests() {
     
     # Run PHP syntax check first
     echo -e "${YELLOW}Checking PHP syntax...${NC}"
-    if "$PHP_CMD" -l "$file" > "$temp_error_log" 2>&1; then
+    if "${PHP_CMD}" -l "${file}" > "${temp_error_log}" 2>&1; then
         echo -e "${GREEN}✓ PHP syntax is valid${NC}"
     else
         echo -e "${RED}✗ PHP syntax error:${NC}"
-        cat "$temp_error_log"
-        echo -e "$file: PHP syntax error on $(date)" >> "$ERROR_LOG"
+        cat "${temp_error_log}"
+        echo -e "${file}: PHP syntax error on $(date)" >> "${ERROR_LOG}"
         current_errors=true
         
         # Don't continue with other tests if syntax is invalid
@@ -189,28 +189,28 @@ function run_tests() {
     # Try auto-fix if errors were found
     if [ "$current_errors" = true ]; then
         echo -e "\n${YELLOW}Attempting to auto-fix issues...${NC}"
-        "$PHP_CMD" "$PROJECT_DIR/tools/auto-fix.php" "$file" > /dev/null 2>&1 || true
+        "${PHP_CMD}" "${PROJECT_DIR}/tools/auto-fix.php" "${file}" > /dev/null 2>&1 || true
         echo -e "${BLUE}Re-running tests after auto-fix...${NC}"
         
         # Re-run PHPCS to see if errors were fixed
-        > "$temp_error_log"
-        if run_phpcs_safely "$file" "$temp_error_log"; then
+        > "${temp_error_log}"
+        if run_phpcs_safely "${file}" "${temp_error_log}"; then
             echo -e "${GREEN}✓ Auto-fix resolved PHPCS errors!${NC}"
             # Remove file from error log if errors were fixed
-            grep -v "$file: PHPCS errors" "$ERROR_LOG" > "$TEMP_DIR/error_log_temp.txt"
-            mv "$TEMP_DIR/error_log_temp.txt" "$ERROR_LOG"
+            grep -v "${file}: PHPCS errors" "${ERROR_LOG}" > "${TEMP_DIR}/error_log_temp.txt"
+            mv "${TEMP_DIR}/error_log_temp.txt" "${ERROR_LOG}"
         else
             echo -e "${RED}✗ Some PHPCS issues remain after auto-fix${NC}"
         fi
     else
         # If no errors, remove file from error log
-        grep -v "$file" "$ERROR_LOG" > "$TEMP_DIR/error_log_temp.txt"
-        mv "$TEMP_DIR/error_log_temp.txt" "$ERROR_LOG"
+        grep -v "${file}" "${ERROR_LOG}" > "${TEMP_DIR}/error_log_temp.txt"
+        mv "${TEMP_DIR}/error_log_temp.txt" "${ERROR_LOG}"
     fi
     
     # Run phpcbf on the file to attempt to fix coding standards
     echo -e "\n${YELLOW}Running PHPCBF to auto-fix coding standards...${NC}"
-    "$PHP_CMD" "$PROJECT_DIR/vendor/bin/phpcbf" --standard=WordPress "$file" > /dev/null 2>&1 || true
+    "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpcbf" --standard=WordPress "${file}" > /dev/null 2>&1 || true
     
     # Separator for readability
     echo -e "${BLUE}-----------------------------------------------------------${NC}"
