@@ -113,7 +113,8 @@ function run_phpcs_safely() {
     local output_file="$2"
     
     # Use a simple report format to avoid vsprintf errors
-    "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpcs" --standard=WordPress --report=summary "${file}" > "${output_file}" 2>&1
+    # Use eval with proper quoting to handle paths with spaces
+    eval "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpcs" --standard=WordPress --report=summary "\"${file}\"" > "${output_file}" 2>&1
     return $?
 }
 
@@ -128,8 +129,8 @@ function run_phpunit_safely() {
         bash "${PROJECT_DIR}/bin/install-wp-tests.sh" wordpress_test root root localhost latest
     fi
     
-    # Run the tests
-    "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpunit" > "${output_file}" 2>&1
+    # Run the tests with proper quoting for paths with spaces
+    eval "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpunit" --filter="$(basename "${file}" .php)" > "${output_file}" 2>&1
     return $?
 }
 
@@ -141,14 +142,22 @@ function run_tests() {
     local current_errors=false
     
     echo -e "\n${BLUE}File changed: ${YELLOW}${filename}${NC}"
+    echo -e "${BLUE}Running tests on: ${YELLOW}${file}${NC}"
     echo -e "${BLUE}Running tests...${NC}"
+    
+    # Verify file exists before running tests
+    if [ ! -f "${file}" ]; then
+        echo -e "${RED}File not found: ${file}${NC}"
+        return
+    fi
     
     # Clear temp error log
     > "${temp_error_log}"
     
-    # Run PHP syntax check first - ensure proper quoting for paths with spaces
+    # Run PHP syntax check first - use a more precise command for paths with spaces
     echo -e "${YELLOW}Checking PHP syntax...${NC}"
-    if "${PHP_CMD}" -l "${file}" > "${temp_error_log}" 2>&1; then
+    # Use eval to ensure proper quoting for paths with spaces
+    if eval "${PHP_CMD}" -l "\"${file}\"" > "${temp_error_log}" 2>&1; then
         echo -e "${GREEN}✓ PHP syntax is valid${NC}"
     else
         echo -e "${RED}✗ PHP syntax error:${NC}"
@@ -189,7 +198,7 @@ function run_tests() {
     # Try auto-fix if errors were found
     if [ "${current_errors}" = true ]; then
         echo -e "\n${YELLOW}Attempting to auto-fix issues...${NC}"
-        "${PHP_CMD}" "${PROJECT_DIR}/tools/auto-fix.php" "${file}" > /dev/null 2>&1 || true
+        eval "${PHP_CMD}" "${PROJECT_DIR}/tools/auto-fix.php" "\"${file}\"" > /dev/null 2>&1 || true
         echo -e "${BLUE}Re-running tests after auto-fix...${NC}"
         
         # Re-run PHPCS to see if errors were fixed
@@ -210,7 +219,7 @@ function run_tests() {
     
     # Run phpcbf on the file to attempt to fix coding standards
     echo -e "\n${YELLOW}Running PHPCBF to auto-fix coding standards...${NC}"
-    "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpcbf" --standard=WordPress "${file}" > /dev/null 2>&1 || true
+    eval "${PHP_CMD}" "${PROJECT_DIR}/vendor/bin/phpcbf" --standard=WordPress "\"${file}\"" > /dev/null 2>&1 || true
     
     # Separator for readability
     echo -e "${BLUE}-----------------------------------------------------------${NC}"
@@ -241,7 +250,12 @@ while true; do
     changed_files=$(diff "${TEMP_DIR}/phpfiles_state.txt" "${TEMP_DIR}/phpfiles_state_new.txt" | grep ">" | cut -d' ' -f3-)
     
     if [ ! -z "${changed_files}" ]; then
-        for file in ${changed_files}; do
+        # Use read with IFS=\n to handle filenames with spaces properly
+        echo "${changed_files}" | while IFS= read -r file; do
+            # Skip if file is empty or just whitespace
+            if [ -z "$(echo "${file}" | tr -d '[:space:]')" ]; then
+                continue
+            fi
             run_tests "${file}"
             
             # Append error history for reference
