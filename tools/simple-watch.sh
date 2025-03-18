@@ -21,29 +21,29 @@ echo -e "Press ${YELLOW}Ctrl+C${NC} to stop."
 # Define paths
 TEMP_DIR="/tmp"
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-WP_CLI="$PROJECT_DIR/wp-cli.phar"
-ERROR_LOG="$TEMP_DIR/php_error_log.txt"
-ERROR_HISTORY="$TEMP_DIR/php_error_history.txt"
+WP_CLI="${PROJECT_DIR}/wp-cli.phar"
+ERROR_LOG="${TEMP_DIR}/php_error_log.txt"
+ERROR_HISTORY="${TEMP_DIR}/php_error_history.txt"
 
 # Clear error logs initially
-> "$ERROR_LOG"
-> "$ERROR_HISTORY"
+> "${ERROR_LOG}"
+> "${ERROR_HISTORY}"
 
 # Set PHP path directly to Local by Flywheel instance
 LOCAL_PHP_PATH="/Users/christian/Library/Application Support/Local/lightning-services/php-8.0.30+0/bin/darwin-arm64/bin/php"
 
 # Check if the specific PHP exists, otherwise fall back to alternatives
-if [ -f "$LOCAL_PHP_PATH" ]; then
-    PHP_CMD="$LOCAL_PHP_PATH"
-    echo -e "${GREEN}Using Local by Flywheel PHP: $PHP_CMD${NC}"
+if [ -f "${LOCAL_PHP_PATH}" ]; then
+    PHP_CMD="${LOCAL_PHP_PATH}"
+    echo -e "${GREEN}Using Local by Flywheel PHP: ${PHP_CMD}${NC}"
 elif [ -f "/Applications/Local/resources/lightning-services/php-*/bin/php" ]; then
     # Use wildcard to match any PHP version installed by Local
     PHP_CMD=$(ls -1 /Applications/Local/resources/lightning-services/php-*/bin/php | sort -r | head -1)
-    echo -e "${GREEN}Found Local by Flywheel PHP: $PHP_CMD${NC}"
+    echo -e "${GREEN}Found Local by Flywheel PHP: ${PHP_CMD}${NC}"
 elif [ -f "/Users/Shared/Local Sites/bin/php" ]; then
     # Alternative location for Local by Flywheel
     PHP_CMD="/Users/Shared/Local Sites/bin/php"
-    echo -e "${GREEN}Found Local by Flywheel PHP: $PHP_CMD${NC}"
+    echo -e "${GREEN}Found Local by Flywheel PHP: ${PHP_CMD}${NC}"
 elif command -v php &> /dev/null; then
     PHP_CMD="php"
 elif [ -f "/usr/bin/php" ]; then
@@ -56,17 +56,17 @@ else
     # Try to find PHP with mdfind (on macOS)
     if command -v mdfind &> /dev/null; then
         PHP_PATH=$(mdfind -name 'php' | grep -v 'Dropbox' | grep '/bin/php$' | head -1)
-        if [ ! -z "$PHP_PATH" ]; then
-            PHP_CMD="$PHP_PATH"
+        if [ ! -z "${PHP_PATH}" ]; then
+            PHP_CMD="${PHP_PATH}"
         fi
     fi
     
     # If PHP is still not found, use the path from phpinfo
-    if [ -z "$PHP_CMD" ]; then
+    if [ -z "${PHP_CMD}" ]; then
         echo -e "${YELLOW}Trying to find PHP using alternative methods...${NC}"
         PHPINFO=$(php -i 2>/dev/null | grep 'PHP Binary' | awk '{print $4}')
-        if [ ! -z "$PHPINFO" ] && [[ "$PHPINFO" != *"Dropbox"* ]]; then
-            PHP_CMD="$PHPINFO"
+        if [ ! -z "${PHPINFO}" ] && [[ "${PHPINFO}" != *"Dropbox"* ]]; then
+            PHP_CMD="${PHPINFO}"
         else
             # Last resort - use env to run with the current shell's environment
             PHP_CMD="env php"
@@ -74,11 +74,11 @@ else
     fi
 fi
 
-echo -e "${GREEN}Using PHP: $PHP_CMD${NC}"
+echo -e "${GREEN}Using PHP: ${PHP_CMD}${NC}"
 
 # Check if wp-cli.phar exists
-if [ ! -f "$WP_CLI" ]; then
-    echo -e "${YELLOW}WP-CLI not found at $WP_CLI. Trying to use globally installed wp command.${NC}"
+if [ ! -f "${WP_CLI}" ]; then
+    echo -e "${YELLOW}WP-CLI not found at ${WP_CLI}. Trying to use globally installed wp command.${NC}"
     if command -v wp &> /dev/null; then
         WP_CLI="wp"
     else
@@ -88,19 +88,19 @@ fi
 
 # Function to check for git commits
 function check_for_commits() {
-    local current_commit=$(cd "$PROJECT_DIR" && git rev-parse HEAD 2>/dev/null || echo "none")
-    local last_checked_commit_file="$TEMP_DIR/last_checked_commit.txt"
+    local current_commit=$(cd "${PROJECT_DIR}" && git rev-parse HEAD 2>/dev/null || echo "none")
+    local last_checked_commit_file="${TEMP_DIR}/last_checked_commit.txt"
     
     # If commit file doesn't exist, create it
-    if [ ! -f "$last_checked_commit_file" ]; then
-        echo "$current_commit" > "$last_checked_commit_file"
+    if [ ! -f "${last_checked_commit_file}" ]; then
+        echo "${current_commit}" > "${last_checked_commit_file}"
         return 0
     fi
     
-    local last_checked_commit=$(cat "$last_checked_commit_file")
+    local last_checked_commit=$(cat "${last_checked_commit_file}")
     
-    if [ "$current_commit" != "$last_checked_commit" ]; then
-        echo "$current_commit" > "$last_checked_commit_file"
+    if [ "${current_commit}" != "${last_checked_commit}" ]; then
+        echo "${current_commit}" > "${last_checked_commit_file}"
         return 1  # Commit has changed
     fi
     
@@ -136,17 +136,17 @@ function run_phpunit_safely() {
 # Function to run tests and track errors
 function run_tests() {
     local file="$1"
-    local filename=$(basename "$file")
-    local temp_error_log="$TEMP_DIR/temp_error_log.txt"
+    local filename=$(basename "${file}")
+    local temp_error_log="${TEMP_DIR}/temp_error_log.txt"
     local current_errors=false
     
-    echo -e "\n${BLUE}File changed: ${YELLOW}$filename${NC}"
+    echo -e "\n${BLUE}File changed: ${YELLOW}${filename}${NC}"
     echo -e "${BLUE}Running tests...${NC}"
     
     # Clear temp error log
-    > "$temp_error_log"
+    > "${temp_error_log}"
     
-    # Run PHP syntax check first
+    # Run PHP syntax check first - ensure proper quoting for paths with spaces
     echo -e "${YELLOW}Checking PHP syntax...${NC}"
     if "${PHP_CMD}" -l "${file}" > "${temp_error_log}" 2>&1; then
         echo -e "${GREEN}✓ PHP syntax is valid${NC}"
@@ -162,32 +162,32 @@ function run_tests() {
     fi
     
     # Run PHPCS on the changed file
-    echo -e "${YELLOW}Running PHP CodeSniffer on $filename...${NC}"
-    if run_phpcs_safely "$file" "$temp_error_log"; then
+    echo -e "${YELLOW}Running PHP CodeSniffer on ${filename}...${NC}"
+    if run_phpcs_safely "${file}" "${temp_error_log}"; then
         echo -e "${GREEN}✓ PHPCS passed with no errors${NC}"
     else
         echo -e "${RED}✗ PHPCS found issues:${NC}"
-        cat "$temp_error_log"
-        echo -e "$file: PHPCS errors on $(date)" >> "$ERROR_LOG"
+        cat "${temp_error_log}"
+        echo -e "${file}: PHPCS errors on $(date)" >> "${ERROR_LOG}"
         current_errors=true
     fi
     
     # If it's a test file or has a corresponding test file, run PHPUnit
-    if [[ "$file" == *"test-"* ]] || [[ -f "$PROJECT_DIR/tests/test-$(basename "$file")" ]]; then
+    if [[ "${file}" == *"test-"* ]] || [[ -f "${PROJECT_DIR}/tests/test-$(basename "${file}")" ]]; then
         echo -e "\n${YELLOW}Running PHPUnit tests...${NC}"
-        > "$temp_error_log"
-        if run_phpunit_safely "$file" "$temp_error_log"; then
+        > "${temp_error_log}"
+        if run_phpunit_safely "${file}" "${temp_error_log}"; then
             echo -e "${GREEN}✓ PHPUnit tests passed${NC}"
         else
             echo -e "${RED}✗ PHPUnit tests failed:${NC}"
-            cat "$temp_error_log"
-            echo -e "$file: PHPUnit errors on $(date)" >> "$ERROR_LOG"
+            cat "${temp_error_log}"
+            echo -e "${file}: PHPUnit errors on $(date)" >> "${ERROR_LOG}"
             current_errors=true
         fi
     fi
     
     # Try auto-fix if errors were found
-    if [ "$current_errors" = true ]; then
+    if [ "${current_errors}" = true ]; then
         echo -e "\n${YELLOW}Attempting to auto-fix issues...${NC}"
         "${PHP_CMD}" "${PROJECT_DIR}/tools/auto-fix.php" "${file}" > /dev/null 2>&1 || true
         echo -e "${BLUE}Re-running tests after auto-fix...${NC}"
@@ -217,7 +217,7 @@ function run_tests() {
 }
 
 # Get initial state of PHP files
-find "$PROJECT_DIR" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -exec stat -f "%m %N" {} \; | sort > "$TEMP_DIR/phpfiles_state.txt"
+find "${PROJECT_DIR}" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -exec stat -f "%m %N" {} \; | sort > "${TEMP_DIR}/phpfiles_state.txt"
 
 # Initialize git commit tracking
 check_for_commits
@@ -229,35 +229,32 @@ while true; do
     # Check if there was a new commit
     if ! check_for_commits; then
         echo -e "\n${GREEN}New git commit detected! Clearing error logs.${NC}"
-        > "$ERROR_LOG"
-        > "$ERROR_HISTORY"
+        > "${ERROR_LOG}"
+        > "${ERROR_HISTORY}"
         echo -e "${GREEN}Error logs cleared. Starting fresh monitoring.${NC}"
     fi
     
     # Get current state
-    find "$PROJECT_DIR" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -exec stat -f "%m %N" {} \; | sort > "$TEMP_DIR/phpfiles_state_new.txt"
+    find "${PROJECT_DIR}" -name "*.php" -not -path "*/vendor/*" -not -path "*/node_modules/*" -type f -exec stat -f "%m %N" {} \; | sort > "${TEMP_DIR}/phpfiles_state_new.txt"
     
     # Compare with previous state
-    changed_files=$(diff "$TEMP_DIR/phpfiles_state.txt" "$TEMP_DIR/phpfiles_state_new.txt" | grep ">" | cut -d' ' -f3-)
+    changed_files=$(diff "${TEMP_DIR}/phpfiles_state.txt" "${TEMP_DIR}/phpfiles_state_new.txt" | grep ">" | cut -d' ' -f3-)
     
-    if [ ! -z "$changed_files" ]; then
-        for file in $changed_files; do
-            run_tests "$file"
+    if [ ! -z "${changed_files}" ]; then
+        for file in ${changed_files}; do
+            run_tests "${file}"
             
             # Append error history for reference
-            cat "$ERROR_LOG" >> "$ERROR_HISTORY"
+            cat "${ERROR_LOG}" >> "${ERROR_HISTORY}"
         done
         
-        # Show summary of remaining errors
-        error_count=$(wc -l < "$ERROR_LOG")
-        if [ "$error_count" -gt 0 ]; then
-            echo -e "\n${YELLOW}Remaining errors to fix:${NC}"
-            cat "$ERROR_LOG"
-        else
-            echo -e "\n${GREEN}All detected errors have been fixed!${NC}"
-        fi
+        # Update previous state for next comparison
+        mv "${TEMP_DIR}/phpfiles_state_new.txt" "${TEMP_DIR}/phpfiles_state.txt"
     fi
     
-    # Update state
-    cp "$TEMP_DIR/phpfiles_state_new.txt" "$TEMP_DIR/phpfiles_state.txt"
+    # Display remaining errors summary, if any
+    if [ -s "${ERROR_LOG}" ]; then
+        echo -e "\n${YELLOW}Remaining errors to fix:${NC}"
+        cat "${ERROR_LOG}"
+    fi
 done 
