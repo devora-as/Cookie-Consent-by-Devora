@@ -410,38 +410,42 @@ class CookieConsent
      */
     public function ajax_save_integration_settings(): void
     {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('ajax_save_integration_settings() - Received integration settings save request', $_POST);
+        // Check nonce
+        if (!isset($_POST['nonce']) || !\wp_verify_nonce($_POST['nonce'], 'custom_cookie_nonce')) {
+            $this->debug_log('ajax_save_integration_settings() - Nonce verification failed', $_POST);
+            \wp_send_json_error(['message' => __('Security check failed.', 'custom-cookie-consent')]);
         }
 
-        if (!isset($_POST['nonce']) || !\wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
-            \wp_send_json_error(['message' => __('Invalid security token. Please refresh the page and try again.', 'custom-cookie-consent')]);
-            return;
-        }
-
+        // Check permissions
         if (!\current_user_can('manage_options')) {
+            $this->debug_log('ajax_save_integration_settings() - Permission check failed', ['user_id' => \get_current_user_id()]);
             \wp_send_json_error(['message' => __('Permission denied. You do not have sufficient permissions to modify these settings.', 'custom-cookie-consent')]);
-            return;
         }
 
         // Get existing settings
         $existing_settings = \get_option('custom_cookie_settings', []);
 
-        // Process integration checkboxes with explicit true/false values
+        // Integration options: sitekit_integration, wp_consent_api, hubspot_integration
         $integration_fields = [
             'wp_consent_api',
             'sitekit_integration',
             'hubspot_integration'
         ];
 
+        // Process each integration field
         foreach ($integration_fields as $field) {
             if (isset($_POST[$field])) {
-                // Convert "1" to true and "0" to false
                 $existing_settings[$field] = ($_POST[$field] === "1");
             } else {
-                // If not set, default to false
                 $existing_settings[$field] = false;
             }
+        }
+
+        // Handle consent region setting
+        if (isset($_POST['consent_region']) && in_array($_POST['consent_region'], ['NO', 'EEA', 'GLOBAL'])) {
+            $existing_settings['consent_region'] = sanitize_text_field($_POST['consent_region']);
+        } else {
+            $existing_settings['consent_region'] = 'NO'; // Default to Norway if not set or invalid
         }
 
         // Debug log the integration settings being saved
@@ -449,20 +453,22 @@ class CookieConsent
             $this->debug_log('ajax_save_integration_settings() - Integration settings being saved:', [
                 'wp_consent_api' => $existing_settings['wp_consent_api'],
                 'sitekit_integration' => $existing_settings['sitekit_integration'],
-                'hubspot_integration' => $existing_settings['hubspot_integration']
+                'hubspot_integration' => $existing_settings['hubspot_integration'],
+                'consent_region' => $existing_settings['consent_region']
             ]);
         }
 
         // Save the updated settings
         $updated = \update_option('custom_cookie_settings', $existing_settings);
 
-        // Debug log the result
+        // Debug log the update result
         if (defined('WP_DEBUG') && WP_DEBUG) {
             $this->debug_log('ajax_save_integration_settings() - Update result:', [
                 'updated' => $updated,
                 'wp_consent_api' => $existing_settings['wp_consent_api'],
                 'sitekit_integration' => $existing_settings['sitekit_integration'],
-                'hubspot_integration' => $existing_settings['hubspot_integration']
+                'hubspot_integration' => $existing_settings['hubspot_integration'],
+                'consent_region' => $existing_settings['consent_region']
             ]);
         }
 
@@ -740,7 +746,8 @@ class CookieConsent
             'gtmId' => $settings['gtm_id'] ?? '',
             'debug' => defined('WP_DEBUG') && WP_DEBUG ? true : false,
             'isBot' => $this->is_bot(),
-            'templateTimestamp' => $template_timestamp
+            'templateTimestamp' => $template_timestamp,
+            'consent_region' => $settings['consent_region'] ?? 'NO'
         ]);
 
         // If CSS is deferred, output the inline preload
@@ -847,6 +854,51 @@ class CookieConsent
             'ad_user_data' => $analytics_consent ? 'granted' : 'denied',
             'ad_personalization' => $analytics_consent ? 'granted' : 'denied'
         ];
+
+        // Get the consent region setting
+        $settings = get_option('custom_cookie_settings', []);
+        $consent_region = isset($settings['consent_region']) ? $settings['consent_region'] : 'NO';
+
+        // Add the appropriate region based on the setting
+        if ($consent_region === 'NO') {
+            $consent_settings['region'] = ['NO'];
+        } elseif ($consent_region === 'EEA') {
+            // EEA countries list - all EU countries plus Norway, Iceland, and Liechtenstein
+            $consent_settings['region'] = [
+                'AT',
+                'BE',
+                'BG',
+                'HR',
+                'CY',
+                'CZ',
+                'DK',
+                'EE',
+                'FI',
+                'FR',
+                'DE',
+                'GR',
+                'HU',
+                'IE',
+                'IT',
+                'LV',
+                'LT',
+                'LU',
+                'MT',
+                'NL',
+                'PL',
+                'PT',
+                'RO',
+                'SK',
+                'SI',
+                'ES',
+                'SE', // EU countries
+                'NO',
+                'IS',
+                'LI',
+                'GB' // Norway, Iceland, Liechtenstein, UK
+            ];
+        }
+        // For 'GLOBAL', we don't set any region which applies restrictions globally
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
             $this->debug_log('Site Kit Consent Settings:', $consent_settings);
@@ -2031,6 +2083,61 @@ class CookieConsent
 
         // Update the database version option
         update_option('custom_cookie_db_version', CUSTOM_COOKIE_DB_VERSION);
+    }
+
+    private function enqueue_frontend_scripts(): void
+    {
+        $settings = \get_option('custom_cookie_settings', []);
+        $cache_buster = isset($settings['last_updated']) ? $settings['last_updated'] : time();
+
+        // Enqueue cookie consent styles
+        \wp_enqueue_style(
+            'custom-cookie-style',
+            \plugins_url('css/cookie-consent.css', __FILE__),
+            [],
+            $cache_buster
+        );
+
+        // Enqueue the consent manager script
+        \wp_enqueue_script(
+            'custom-cookie-script',
+            \plugins_url('js/consent-manager.js', __FILE__),
+            [],
+            $cache_buster,
+            true
+        );
+
+        // Get banner position setting
+        $position = isset($settings['position']) ? $settings['position'] : 'bottom';
+
+        // Get cookie policy URLs
+        $privacy_url = isset($settings['privacy_url']) ? $settings['privacy_url'] : '';
+        $cookie_policy_url = isset($settings['cookie_policy_url']) ? $settings['cookie_policy_url'] : $privacy_url;
+
+        // Get the consent region setting
+        $consent_region = isset($settings['consent_region']) ? $settings['consent_region'] : 'NO';
+
+        // Localize script with settings
+        \wp_localize_script('custom-cookie-script', 'cookieSettings', [
+            'ajaxUrl' => \admin_url('admin-ajax.php'),
+            'nonce' => \wp_create_nonce('custom_cookie_nonce'),
+            'position' => $position,
+            'privacyPolicyUrl' => $privacy_url,
+            'cookiePolicyUrl' => $cookie_policy_url,
+            'enableCookieGroups' => true,
+            'cookieExpiration' => 365, // Days
+            'consent_region' => $consent_region,
+            'debugMode' => defined('WP_DEBUG') && WP_DEBUG
+        ]);
+
+        // Enqueue the banner template script
+        \wp_enqueue_script(
+            'cookie-banner-template',
+            \plugins_url('js/banner-template.js', __FILE__),
+            ['custom-cookie-script'],
+            $cache_buster,
+            true
+        );
     }
 }
 

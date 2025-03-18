@@ -145,6 +145,16 @@ if (!defined('ABSPATH')) {
                 <p class="description"><?php _e('Control HubSpot tracking features based on user consent.', 'custom-cookie-consent'); ?></p>
             </div>
 
+            <div class="form-field">
+                <label for="consent_region"><?php _e('Consent Region', 'custom-cookie-consent'); ?></label>
+                <select id="consent_region" name="consent_region">
+                    <option value="NO" <?php selected($settings['consent_region'] ?? 'NO', 'NO'); ?>><?php _e('Norway Only', 'custom-cookie-consent'); ?></option>
+                    <option value="EEA" <?php selected($settings['consent_region'] ?? 'NO', 'EEA'); ?>><?php _e('European Economic Area (EEA)', 'custom-cookie-consent'); ?></option>
+                    <option value="GLOBAL" <?php selected($settings['consent_region'] ?? 'NO', 'GLOBAL'); ?>><?php _e('Global (All Countries)', 'custom-cookie-consent'); ?></option>
+                </select>
+                <p class="description"><?php _e('Select where consent defaults should apply. "Norway Only" applies consent restrictions only to Norwegian visitors. "EEA" applies to all European Economic Area countries. "Global" applies consent restrictions worldwide regardless of location.', 'custom-cookie-consent'); ?></p>
+            </div>
+
             <input type="submit" name="submit" class="cookie-consent-submit" value="<?php _e('Save Integration Settings', 'custom-cookie-consent'); ?>">
         </form>
     </div>

@@ -142,7 +142,10 @@ class ConsentManager {
   }
 
   setDefaultConsent() {
-    window.dataLayer = window.dataLayer || [];
+    if (!window.dataLayer) {
+      window.dataLayer = [];
+    }
+
     const defaultConsent = {
       ad_storage: "denied",
       analytics_storage: "denied",
@@ -152,8 +155,57 @@ class ConsentManager {
       ad_user_data: "denied",
       ad_personalization: "denied",
       wait_for_update: 500, // Reduced from 2000
-      region: ["NO"],
     };
+
+    // Get region setting from cookieConsentSettings if available
+    if (
+      window.cookieConsentSettings &&
+      window.cookieConsentSettings.consent_region
+    ) {
+      if (window.cookieConsentSettings.consent_region === "NO") {
+        defaultConsent.region = ["NO"];
+      } else if (window.cookieConsentSettings.consent_region === "EEA") {
+        // EEA countries list - all EU countries plus Norway, Iceland, and Liechtenstein
+        defaultConsent.region = [
+          "AT",
+          "BE",
+          "BG",
+          "HR",
+          "CY",
+          "CZ",
+          "DK",
+          "EE",
+          "FI",
+          "FR",
+          "DE",
+          "GR",
+          "HU",
+          "IE",
+          "IT",
+          "LV",
+          "LT",
+          "LU",
+          "MT",
+          "NL",
+          "PL",
+          "PT",
+          "RO",
+          "SK",
+          "SI",
+          "ES",
+          "SE", // EU countries
+          "NO",
+          "IS",
+          "LI",
+          "GB", // Norway, Iceland, Liechtenstein, UK
+        ];
+      }
+      // For 'GLOBAL', we don't set any region which applies restrictions globally
+    } else {
+      // Default to NO if not configured
+      defaultConsent.region = ["NO"];
+    }
+
     window.dataLayer.push(["consent", "default", defaultConsent]);
   }
 
@@ -246,8 +298,56 @@ class ConsentManager {
       ad_user_data: "denied",
       ad_personalization: "denied",
       wait_for_update: 2000,
-      region: ["NO"],
     };
+
+    // Get region setting from cookieConsentSettings if available
+    if (
+      window.cookieConsentSettings &&
+      window.cookieConsentSettings.consent_region
+    ) {
+      if (window.cookieConsentSettings.consent_region === "NO") {
+        defaultConsent.region = ["NO"];
+      } else if (window.cookieConsentSettings.consent_region === "EEA") {
+        // EEA countries list - all EU countries plus Norway, Iceland, and Liechtenstein
+        defaultConsent.region = [
+          "AT",
+          "BE",
+          "BG",
+          "HR",
+          "CY",
+          "CZ",
+          "DK",
+          "EE",
+          "FI",
+          "FR",
+          "DE",
+          "GR",
+          "HU",
+          "IE",
+          "IT",
+          "LV",
+          "LT",
+          "LU",
+          "MT",
+          "NL",
+          "PL",
+          "PT",
+          "RO",
+          "SK",
+          "SI",
+          "ES",
+          "SE", // EU countries
+          "NO",
+          "IS",
+          "LI",
+          "GB", // Norway, Iceland, Liechtenstein, UK
+        ];
+      }
+      // For 'GLOBAL', we don't set any region which applies restrictions globally
+    } else {
+      // Default to NO if not configured
+      defaultConsent.region = ["NO"];
+    }
 
     pushToDataLayer(["consent", "default", defaultConsent]);
 
@@ -957,9 +1057,57 @@ class ConsentManager {
       ad_storage: consent.categories.marketing ? "granted" : "denied",
       ad_user_data: consent.categories.marketing ? "granted" : "denied",
       ad_personalization: consent.categories.marketing ? "granted" : "denied",
-      region: ["NO"],
       wait_for_update: 2000,
     };
+
+    // Get region setting from cookieConsentSettings if available
+    if (
+      window.cookieConsentSettings &&
+      window.cookieConsentSettings.consent_region
+    ) {
+      if (window.cookieConsentSettings.consent_region === "NO") {
+        consentSettings.region = ["NO"];
+      } else if (window.cookieConsentSettings.consent_region === "EEA") {
+        // EEA countries list - all EU countries plus Norway, Iceland, and Liechtenstein
+        consentSettings.region = [
+          "AT",
+          "BE",
+          "BG",
+          "HR",
+          "CY",
+          "CZ",
+          "DK",
+          "EE",
+          "FI",
+          "FR",
+          "DE",
+          "GR",
+          "HU",
+          "IE",
+          "IT",
+          "LV",
+          "LT",
+          "LU",
+          "MT",
+          "NL",
+          "PL",
+          "PT",
+          "RO",
+          "SK",
+          "SI",
+          "ES",
+          "SE", // EU countries
+          "NO",
+          "IS",
+          "LI",
+          "GB", // Norway, Iceland, Liechtenstein, UK
+        ];
+      }
+      // For 'GLOBAL', we don't set any region which applies restrictions globally
+    } else {
+      // Default to NO if not configured
+      consentSettings.region = ["NO"];
+    }
 
     // Push consent update to dataLayer
     window.dataLayer = window.dataLayer || [];
@@ -972,8 +1120,13 @@ class ConsentManager {
           ad_storage: "granted",
           ad_user_data: "granted",
           ad_personalization: "granted",
-          region: ["NO"],
         };
+
+        // Apply the same region settings
+        if (consentSettings.region) {
+          adSettings.region = consentSettings.region;
+        }
+
         window.dataLayer.push(["consent", "update", adSettings]);
       }, 500);
     }
