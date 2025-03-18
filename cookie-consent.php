@@ -11,8 +11,8 @@
  * License URI: http://www.gnu.org/licenses/gpl.html
  * Text Domain: custom-cookie-consent
  * Domain Path: /languages
- * GitHub Plugin URI: GITHUB_USERNAME/custom-cookie-consent
- * GitHub Plugin URI: https://github.com/GITHUB_USERNAME/custom-cookie-consent
+ * GitHub Plugin URI: devora-as/custom-cookie-consent
+ * GitHub Plugin URI: https://github.com/devora-as/custom-cookie-consent
  * Primary Branch: main
  * Release Asset: true
  *
