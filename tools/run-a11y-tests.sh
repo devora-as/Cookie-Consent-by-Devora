@@ -7,7 +7,7 @@
 WP_VERSION=${1:-latest}
 PHP_VERSION=${2:-"7.4"}
 WP_MULTISITE=${3:-0}
-PLUGIN_DIR=$(pwd)
+PLUGIN_DIR="$(pwd)"
 WP_TEST_URL="http://devora.local"
 
 # Colors for output
@@ -30,7 +30,7 @@ fi
 WP_SERVER_RUNNING=false
 
 # Try to connect to test server
-if curl -s $WP_TEST_URL > /dev/null; then
+if curl -s "$WP_TEST_URL" > /dev/null; then
     WP_SERVER_RUNNING=true
     echo -e "${GREEN}WordPress test server found at $WP_TEST_URL${NC}"
 else
@@ -51,14 +51,14 @@ else
             if [ ! -d "/tmp/wordpress" ]; then
                 echo -e "${YELLOW}Setting up temporary WordPress installation...${NC}"
                 mkdir -p /tmp/wordpress
-                wp core download --version=$WP_VERSION --path=/tmp/wordpress
+                wp core download --version="$WP_VERSION" --path=/tmp/wordpress
                 wp config create --dbname=wordpress_test --dbuser=root --dbpass=root --path=/tmp/wordpress
                 wp db create --path=/tmp/wordpress || true
                 wp core install --url=http://devora.local --title="Testing Site" --admin_user=admin --admin_password=password --admin_email=admin@example.com --path=/tmp/wordpress
                 
                 # Link our plugin
-                ln -s $(pwd) /tmp/wordpress/wp-content/plugins/
-                wp plugin activate $PLUGIN_DIR --path=/tmp/wordpress
+                ln -s "$PLUGIN_DIR" /tmp/wordpress/wp-content/plugins/
+                wp plugin activate "$(basename "$PLUGIN_DIR")" --path=/tmp/wordpress
             fi
             
             echo -e "${YELLOW}Starting temporary WordPress server...${NC}"
@@ -132,14 +132,14 @@ if [ "$WP_SERVER_RUNNING" = false ]; then
     if [ ! -d "/tmp/wordpress" ]; then
         echo -e "${YELLOW}Setting up temporary WordPress installation...${NC}"
         mkdir -p /tmp/wordpress
-        wp core download --version=$WP_VERSION --path=/tmp/wordpress
+        wp core download --version="$WP_VERSION" --path=/tmp/wordpress
         wp config create --dbname=wordpress_test --dbuser=root --dbpass=root --path=/tmp/wordpress
         wp db create --path=/tmp/wordpress || true
         wp core install --url=http://devora.local --title="Testing Site" --admin_user=admin --admin_password=password --admin_email=admin@example.com --path=/tmp/wordpress
         
         # Link our plugin
-        ln -s $(pwd) /tmp/wordpress/wp-content/plugins/
-        wp plugin activate $PLUGIN_DIR --path=/tmp/wordpress
+        ln -s "$PLUGIN_DIR" /tmp/wordpress/wp-content/plugins/
+        wp plugin activate "$(basename "$PLUGIN_DIR")" --path=/tmp/wordpress
     fi
     
     echo -e "${YELLOW}Starting temporary WordPress server...${NC}"

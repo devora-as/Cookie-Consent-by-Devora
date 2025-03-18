@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Get the commit message file
-COMMIT_MSG_FILE=$1
-COMMIT_SOURCE=$2
+COMMIT_MSG_FILE="$1"
+COMMIT_SOURCE="$2"
 
 # Skip auto-generation if commit message is already provided
 if [ "$COMMIT_SOURCE" != "" ]; then
@@ -21,22 +21,22 @@ fi
 CHANGE_SUMMARY=$(git diff --cached --stat)
 
 # Write basic summary to commit message file
-echo "# Auto-generated commit message" > $COMMIT_MSG_FILE
-echo "#" >> $COMMIT_MSG_FILE
-echo "# Changes:" >> $COMMIT_MSG_FILE
-echo "#" >> $COMMIT_MSG_FILE
+echo "# Auto-generated commit message" > "$COMMIT_MSG_FILE"
+echo "#" >> "$COMMIT_MSG_FILE"
+echo "# Changes:" >> "$COMMIT_MSG_FILE"
+echo "#" >> "$COMMIT_MSG_FILE"
 
 # Add each staged file with a bullet point
 for file in $STAGED_FILES; do
-    echo "# - $file" >> $COMMIT_MSG_FILE
+    echo "# - $file" >> "$COMMIT_MSG_FILE"
 done
 
-echo "#" >> $COMMIT_MSG_FILE
-echo "# Generated summary:" >> $COMMIT_MSG_FILE
-echo "#" >> $COMMIT_MSG_FILE
-echo "# $CHANGE_SUMMARY" >> $COMMIT_MSG_FILE
-echo "#" >> $COMMIT_MSG_FILE
-echo "# Please edit the commit message above. Lines starting with '#' will be removed." >> $COMMIT_MSG_FILE
+echo "#" >> "$COMMIT_MSG_FILE"
+echo "# Generated summary:" >> "$COMMIT_MSG_FILE"
+echo "#" >> "$COMMIT_MSG_FILE"
+echo "# $CHANGE_SUMMARY" >> "$COMMIT_MSG_FILE"
+echo "#" >> "$COMMIT_MSG_FILE"
+echo "# Please edit the commit message above. Lines starting with '#' will be removed." >> "$COMMIT_MSG_FILE"
 
 # Default commit message template - user should edit this
-echo "Update: [describe changes here]" > $COMMIT_MSG_FILE 
+echo "Update: [describe changes here]" > "$COMMIT_MSG_FILE" 

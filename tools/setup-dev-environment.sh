@@ -8,7 +8,7 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 # Set PHP path to Local by Flywheel instance
-PHP_CMD="/Users/christian/Library/Application Support/Local/lightning-services/php-8.0.30+0/bin/darwin-arm64/sbin/php"
+PHP_CMD="/Users/christian/Library/Application Support/Local/lightning-services/php-8.0.30+0/bin/darwin-arm64/bin/php"
 
 # Check if the specific PHP exists
 if [ ! -f "$PHP_CMD" ]; then

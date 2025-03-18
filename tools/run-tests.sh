@@ -10,7 +10,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Set PHP path to Local by Flywheel instance
-PHP_CMD="/Users/christian/Library/Application Support/Local/lightning-services/php-8.0.30+0/bin/darwin-arm64/sbin/php"
+PHP_CMD="/Users/christian/Library/Application Support/Local/lightning-services/php-8.0.30+0/bin/darwin-arm64/bin/php"
 
 # Check if the specific PHP exists
 if [ ! -f "$PHP_CMD" ]; then
@@ -30,16 +30,16 @@ echo -e "${BLUE}==============================${NC}\n"
 
 # Run PHPCS (PHP CodeSniffer) first
 echo -e "${YELLOW}Running PHP CodeSniffer...${NC}"
-$PHP_CMD vendor/bin/phpcs --standard=WordPress --report=summary --ignore=vendor/,node_modules/,tests/ .
+"$PHP_CMD" vendor/bin/phpcs --standard=WordPress --report=summary --ignore=vendor/,node_modules/,tests/ .
 PHPCS_EXIT_CODE=$?
 
 if [ $PHPCS_EXIT_CODE -ne 0 ]; then
     echo -e "${RED}PHPCS found issues. Attempting to auto-fix...${NC}"
-    $PHP_CMD vendor/bin/phpcbf --standard=WordPress --ignore=vendor/,node_modules/,tests/ .
+    "$PHP_CMD" vendor/bin/phpcbf --standard=WordPress --ignore=vendor/,node_modules/,tests/ .
     AUTO_FIXES+=("Applied PHPCBF fixes for coding standards")
     
     # Run PHPCS again to see if there are remaining issues
-    $PHP_CMD vendor/bin/phpcs --standard=WordPress --report=summary --ignore=vendor/,node_modules/,tests/ .
+    "$PHP_CMD" vendor/bin/phpcs --standard=WordPress --report=summary --ignore=vendor/,node_modules/,tests/ .
     PHPCS_EXIT_CODE=$?
     
     if [ $PHPCS_EXIT_CODE -ne 0 ]; then
@@ -54,7 +54,7 @@ fi
 # Run PHPMD (PHP Mess Detector) if installed
 if [ -f ./vendor/bin/phpmd ]; then
     echo -e "\n${YELLOW}Running PHP Mess Detector...${NC}"
-    $PHP_CMD vendor/bin/phpmd . text ./tools/phpmd-ruleset.xml --exclude vendor/,node_modules/,tests/
+    "$PHP_CMD" vendor/bin/phpmd . text ./tools/phpmd-ruleset.xml --exclude vendor/,node_modules/,tests/
     PHPMD_EXIT_CODE=$?
     
     if [ $PHPMD_EXIT_CODE -ne 0 ]; then
@@ -66,7 +66,7 @@ fi
 
 # Run custom auto-fix script
 echo -e "\n${YELLOW}Running advanced auto-fix script...${NC}"
-$PHP_CMD ./tools/auto-fix.php
+"$PHP_CMD" ./tools/auto-fix.php
 AUTOFIX_EXIT_CODE=$?
 
 if [ $AUTOFIX_EXIT_CODE -ne 0 ]; then
@@ -78,7 +78,7 @@ fi
 
 # Run PHPUnit tests
 echo -e "\n${YELLOW}Running PHPUnit tests...${NC}"
-$PHP_CMD vendor/bin/phpunit --testdox
+"$PHP_CMD" vendor/bin/phpunit --testdox
 PHPUNIT_EXIT_CODE=$?
 
 if [ $PHPUNIT_EXIT_CODE -ne 0 ]; then

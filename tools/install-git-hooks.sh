@@ -13,8 +13,8 @@ mkdir -p .git/hooks
 
 # Copy pre-commit hook
 echo -e "${BLUE}Installing pre-commit hook...${NC}"
-cp tools/git-hooks/pre-commit .git/hooks/pre-commit
-chmod +x .git/hooks/pre-commit
+cp "tools/git-hooks/pre-commit" ".git/hooks/pre-commit"
+chmod +x ".git/hooks/pre-commit"
 
 # Make all hooks in tools/git-hooks executable
 chmod +x tools/git-hooks/*

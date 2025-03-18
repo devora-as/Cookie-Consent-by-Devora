@@ -276,7 +276,7 @@ fi
 WP_VERSION=${1:-latest}
 PHP_VERSION=${2:-"7.4"}
 WP_MULTISITE=${3:-0}
-PLUGIN_DIR=$(basename $(pwd))
+PLUGIN_DIR="$(basename "$(pwd)")"
 WP_TEST_URL="http://devora.local"
 
 # Add integration with WP-CLI for testing
@@ -297,7 +297,7 @@ if ! wp core is-installed --path=/tmp/wordpress &> /dev/null; then
     
     # Create WordPress test site
     mkdir -p /tmp/wordpress
-    wp core download --version=$WP_VERSION --path=/tmp/wordpress
+    wp core download --version="$WP_VERSION" --path=/tmp/wordpress
 
     # Create wp-config.php
     wp config create --dbname=wordpress_test --dbuser=root --dbpass=root --path=/tmp/wordpress
@@ -309,11 +309,11 @@ if ! wp core is-installed --path=/tmp/wordpress &> /dev/null; then
     wp core install --url=http://devora.local --title="Testing Site" --admin_user=admin --admin_password=password --admin_email=admin@example.com --path=/tmp/wordpress
     
     # Activate our plugin
-    PLUGIN_DIR=$(basename $(pwd))
+    PLUGIN_DIR="$(basename "$(pwd)")"
     if [ ! -d "/tmp/wordpress/wp-content/plugins/$PLUGIN_DIR" ]; then
-        ln -s $(pwd) /tmp/wordpress/wp-content/plugins/
+        ln -s "$(pwd)" /tmp/wordpress/wp-content/plugins/
     fi
-    wp plugin activate $PLUGIN_DIR --path=/tmp/wordpress
+    wp plugin activate "$PLUGIN_DIR" --path=/tmp/wordpress
 fi
 
 # Start PHP server
