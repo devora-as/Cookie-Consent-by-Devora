@@ -101,6 +101,58 @@ Consent data is stored using a multi-layered approach:
 - Optional database logging for compliance purposes
 - Export functionality for audit requirements
 
+## Best Practices for GDPR Compliance
+
+To ensure your site remains compliant with GDPR, CCPA, and other privacy regulations, follow these best practices when using the Cookie Consent plugin:
+
+### Granular Consent Implementation
+
+The plugin implements proper granular consent with distinct categories that comply with GDPR requirements:
+
+1. **Necessary Cookies** - Always enabled, essential for basic site functionality
+2. **Analytics Cookies** - Enabled only when the user consents to analytics
+3. **Functional Cookies** - Enabled only when the user consents to functional features
+4. **Marketing Cookies** - Enabled ONLY when the user explicitly consents to marketing/advertising
+
+Each category is processed separately, ensuring that if a user only accepts analytics cookies, marketing/advertising features remain disabled. This granular approach is essential for GDPR compliance, which requires specific consent for each purpose.
+
+### Google Consent Mode Implementation
+
+When using Google services (Analytics, Ads, etc.), proper implementation is critical:
+
+- **Do not** add Google Tag Manager code directly to your site. Instead, enter your GTM ID in the plugin settings to ensure proper consent handling.
+- Analytics tracking only begins after the user gives consent for the analytics category.
+- Marketing/advertising features (ad_storage, ad_user_data, ad_personalization) are only enabled when marketing consent is explicitly given.
+- The plugin correctly separates analytics_storage and ad_storage signals to Google services.
+
+### Recommended Settings
+
+For optimal compliance:
+
+1. **Banner Visibility**: Place the banner prominently at the bottom or center of the screen.
+2. **Decline Button**: Always include a visible "Decline All" button that's as prominent as the "Accept" button.
+3. **Default State**: Ensure all non-necessary cookie categories are unchecked by default.
+4. **Cookie Settings Link**: Add a permanent cookie settings link in your footer using the shortcode `[cookie_settings]`.
+5. **Consent Region**: Configure the appropriate region in the settings (Norway, EEA, or Global) based on your audience.
+6. **Documentation**: Maintain a detailed cookie policy that lists all cookies and their purposes.
+
+### Common Implementation Mistakes to Avoid
+
+1. ❌ **Incorrect Google Tag Integration**: Adding GTM or GA4 code directly to your site instead of using the plugin's integration features.
+2. ❌ **Pre-checked Boxes**: Having any non-necessary cookie categories pre-selected (this violates GDPR).
+3. ❌ **No Decline Option**: Making it difficult to decline cookies or hiding the decline button.
+4. ❌ **Loading Tracking Before Consent**: Allowing scripts to load before user consent is given.
+5. ❌ **Ignoring Geo-specific Rules**: Not configuring the consent region appropriately for your audience.
+
+### Handling User Consent Changes
+
+When a user changes their consent preferences:
+
+1. The plugin immediately updates the consent state in Google Consent Mode.
+2. Previously allowed cookies from categories that are now declined will be blocked from reading/writing data.
+3. New cookies from declined categories will not be set.
+4. Existing cookies from declined categories should be deleted where possible.
+
 ## Screenshots
 
 1. **Cookie Consent Banner** - The main consent banner that appears to visitors

@@ -146,14 +146,24 @@ class ConsentManager {
       window.dataLayer = [];
     }
 
+    // Create default consent settings with all types denied by default
+    // (except security_storage which is always granted)
     const defaultConsent = {
-      ad_storage: "denied",
+      // Analytics storage is denied by default (requires analytics consent)
       analytics_storage: "denied",
+
+      // Functional storage is denied by default (requires functional consent)
       functionality_storage: "denied",
       personalization_storage: "denied",
+
+      // Security storage is always granted (necessary cookies)
       security_storage: "granted",
+
+      // Marketing-related settings are denied by default (requires marketing consent)
+      ad_storage: "denied",
       ad_user_data: "denied",
       ad_personalization: "denied",
+
       wait_for_update: 500, // Reduced from 2000
     };
 
@@ -204,6 +214,11 @@ class ConsentManager {
     } else {
       // Default to NO if not configured
       defaultConsent.region = ["NO"];
+    }
+
+    // Log default consent for debugging
+    if (window.cookieConsentSettings?.debug) {
+      console.log("Setting default consent mode:", defaultConsent);
     }
 
     window.dataLayer.push(["consent", "default", defaultConsent]);
@@ -289,14 +304,24 @@ class ConsentManager {
     };
 
     // Ensure this runs before GTM loads
+    // Create default consent settings with all types denied by default
+    // (except security_storage which is always granted)
     const defaultConsent = {
-      ad_storage: "denied",
+      // Analytics storage is denied by default (requires analytics consent)
       analytics_storage: "denied",
+
+      // Functional storage is denied by default (requires functional consent)
       functionality_storage: "denied",
       personalization_storage: "denied",
+
+      // Security storage is always granted (necessary cookies)
       security_storage: "granted",
+
+      // Marketing-related settings are denied by default (requires marketing consent)
+      ad_storage: "denied",
       ad_user_data: "denied",
       ad_personalization: "denied",
+
       wait_for_update: 2000,
     };
 
@@ -347,6 +372,11 @@ class ConsentManager {
     } else {
       // Default to NO if not configured
       defaultConsent.region = ["NO"];
+    }
+
+    // Log default consent for debugging
+    if (window.cookieConsentSettings?.debug) {
+      console.log("Setting default consent mode in init:", defaultConsent);
     }
 
     pushToDataLayer(["consent", "default", defaultConsent]);
@@ -991,8 +1021,23 @@ class ConsentManager {
     // Apply consent immediately without reload
     this.applyConsent();
 
-    // Force update for analytics
-    if (consentData.categories.analytics) {
+    // Force update for analytics and marketing with proper separation
+    if (consentData.categories.analytics && !consentData.categories.marketing) {
+      // If only analytics consent is given (not marketing)
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push([
+        "consent",
+        "update",
+        {
+          analytics_storage: "granted",
+          // Keep marketing/ads denied
+          ad_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+        },
+      ]);
+    } else if (consentData.categories.marketing) {
+      // If marketing consent is given (which implies analytics consent too in most cases)
       window.dataLayer = window.dataLayer || [];
       window.dataLayer.push([
         "consent",
@@ -1000,17 +1045,28 @@ class ConsentManager {
         {
           analytics_storage: "granted",
           ad_storage: "granted",
+          ad_user_data: "granted",
+          ad_personalization: "granted",
         },
       ]);
+    }
 
-      // Try to update Site Kit if available
-      if (window.googlesitekit) {
-        try {
-          window.googlesitekit.dispatch("modules/analytics-4").setConsentState({
-            analytics_storage: "granted",
-          });
-        } catch (e) {
-          // Error handling for Site Kit update
+    // Try to update Site Kit if available
+    if (window.googlesitekit && consentData.categories.analytics) {
+      try {
+        window.googlesitekit.dispatch("modules/analytics-4").setConsentState({
+          analytics_storage: "granted",
+          // Only set ad_storage to granted if marketing consent was given
+          ad_storage: consentData.categories.marketing ? "granted" : "denied",
+          ad_user_data: consentData.categories.marketing ? "granted" : "denied",
+          ad_personalization: consentData.categories.marketing
+            ? "granted"
+            : "denied",
+        });
+      } catch (e) {
+        // Error handling for Site Kit update
+        if (window.cookieConsentSettings?.debug) {
+          console.error("Error updating Site Kit consent state:", e);
         }
       }
     }
@@ -1044,19 +1100,29 @@ class ConsentManager {
       });
     }
 
-    // Prepare consent settings
+    // Prepare consent settings with proper granular consent
+    // Each category should be mapped to the appropriate Google Consent Mode signal
     const consentSettings = {
+      // Analytics is only granted if the user specifically accepts analytics
       analytics_storage: consent.categories.analytics ? "granted" : "denied",
+
+      // Functional cookies control functionality and personalization
       functionality_storage: consent.categories.functional
         ? "granted"
         : "denied",
       personalization_storage: consent.categories.functional
         ? "granted"
         : "denied",
+
+      // Security storage is always granted (necessary cookies)
       security_storage: "granted",
+
+      // Marketing consent ONLY affects ad storage, user data, and personalization
+      // These should never be granted if only analytics consent is given
       ad_storage: consent.categories.marketing ? "granted" : "denied",
       ad_user_data: consent.categories.marketing ? "granted" : "denied",
       ad_personalization: consent.categories.marketing ? "granted" : "denied",
+
       wait_for_update: 2000,
     };
 
@@ -1113,7 +1179,16 @@ class ConsentManager {
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push(["consent", "update", consentSettings]);
 
-    // Force update for ad consent settings with a slight delay
+    // Log consent for debugging
+    if (window.cookieConsentSettings?.debug) {
+      console.log(
+        "Applying consent settings to Google Consent Mode:",
+        consentSettings
+      );
+      console.log("Based on user consent categories:", consent.categories);
+    }
+
+    // Only update ad settings if marketing consent was explicitly given
     if (consent.categories.marketing) {
       setTimeout(() => {
         const adSettings = {
@@ -1128,7 +1203,43 @@ class ConsentManager {
         }
 
         window.dataLayer.push(["consent", "update", adSettings]);
+
+        if (window.cookieConsentSettings?.debug) {
+          console.log(
+            "Applying additional marketing consent settings:",
+            adSettings
+          );
+        }
       }, 500);
+    }
+
+    // Special handling for functional-only consent
+    // This ensures that if the user only gave functional consent, we still update relevant categories
+    if (
+      consent.categories.functional &&
+      !consent.categories.analytics &&
+      !consent.categories.marketing
+    ) {
+      setTimeout(() => {
+        const functionalSettings = {
+          functionality_storage: "granted",
+          personalization_storage: "granted",
+        };
+
+        // Apply the same region settings
+        if (consentSettings.region) {
+          functionalSettings.region = consentSettings.region;
+        }
+
+        window.dataLayer.push(["consent", "update", functionalSettings]);
+
+        if (window.cookieConsentSettings?.debug) {
+          console.log(
+            "Applying additional functional-only consent settings:",
+            functionalSettings
+          );
+        }
+      }, 300);
     }
   }
 

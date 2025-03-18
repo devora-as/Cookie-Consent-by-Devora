@@ -842,17 +842,28 @@ class CookieConsent
      */
     public function filter_sitekit_consent_settings(array $settings): array
     {
+        // Get the consent status for each category
         $analytics_consent = WPConsentWrapper::has_consent('analytics');
+        $functional_consent = WPConsentWrapper::has_consent('functional');
+        $marketing_consent = WPConsentWrapper::has_consent('marketing');
 
-        // Map consent settings for Site Kit
+        // Map consent settings for Site Kit with proper separation between categories
         $consent_settings = [
-            'ad_storage' => $analytics_consent ? 'granted' : 'denied',
+            // Analytics storage should only be granted if analytics consent is given
             'analytics_storage' => $analytics_consent ? 'granted' : 'denied',
-            'functionality_storage' => WPConsentWrapper::has_consent('functional') ? 'granted' : 'denied',
-            'personalization_storage' => WPConsentWrapper::has_consent('functional') ? 'granted' : 'denied',
+
+            // Functional cookies control functionality and personalization
+            'functionality_storage' => $functional_consent ? 'granted' : 'denied',
+            'personalization_storage' => $functional_consent ? 'granted' : 'denied',
+
+            // Security storage is always granted (necessary cookies)
             'security_storage' => 'granted',
-            'ad_user_data' => $analytics_consent ? 'granted' : 'denied',
-            'ad_personalization' => $analytics_consent ? 'granted' : 'denied'
+
+            // Marketing consent ONLY affects ad storage, user data, and personalization
+            // These should never be granted if only analytics consent is given
+            'ad_storage' => $marketing_consent ? 'granted' : 'denied',
+            'ad_user_data' => $marketing_consent ? 'granted' : 'denied',
+            'ad_personalization' => $marketing_consent ? 'granted' : 'denied'
         ];
 
         // Get the consent region setting
@@ -902,6 +913,11 @@ class CookieConsent
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
             $this->debug_log('Site Kit Consent Settings:', $consent_settings);
+            $this->debug_log('Based on user consent status:', [
+                'analytics' => $analytics_consent,
+                'functional' => $functional_consent,
+                'marketing' => $marketing_consent
+            ]);
         }
 
         return $consent_settings;

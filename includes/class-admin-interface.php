@@ -68,6 +68,15 @@ class AdminInterface
             'custom-cookie-analytics',
             [$this, 'render_analytics_page']
         );
+
+        add_submenu_page(
+            'custom-cookie-consent',
+            __('Documentation', 'custom-cookie-consent'),
+            __('Documentation', 'custom-cookie-consent'),
+            'manage_options',
+            'custom-cookie-documentation',
+            [$this, 'render_documentation_page']
+        );
     }
 
     public function enqueue_admin_assets($hook)
@@ -222,6 +231,14 @@ class AdminInterface
     public function render_analytics_page()
     {
         include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/analytics.php';
+    }
+
+    /**
+     * Render the documentation page with best practices for GDPR compliance
+     */
+    public function render_documentation_page()
+    {
+        include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/documentation.php';
     }
 
     public function ajax_categorize_cookie()
