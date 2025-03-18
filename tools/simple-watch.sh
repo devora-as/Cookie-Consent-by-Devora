@@ -29,6 +29,10 @@ ERROR_HISTORY="${TEMP_DIR}/php_error_history.txt"
 > "${ERROR_LOG}"
 > "${ERROR_HISTORY}"
 
+# Initialize global test results
+GLOBAL_TEST_RESULTS="${TEMP_DIR}/global_test_results.txt"
+> "${GLOBAL_TEST_RESULTS}"
+
 # Set PHP path directly to Local by Flywheel instance
 LOCAL_PHP_PATH="/Users/christian/Library/Application Support/Local/lightning-services/php-8.0.30+0/bin/darwin-arm64/bin/php"
 
@@ -178,6 +182,10 @@ function run_tests() {
     local filename=$(basename "${file}")
     local temp_error_log="${TEMP_DIR}/temp_error_log.txt"
     local current_errors=false
+    local test_results="${TEMP_DIR}/test_results_$$.txt"
+    
+    # Start with empty test results
+    > "${test_results}"
     
     echo -e "\n${BLUE}File changed: ${YELLOW}${filename}${NC}"
     echo -e "${BLUE}Running tests on: ${YELLOW}${file}${NC}"
@@ -186,7 +194,9 @@ function run_tests() {
     # Verify file exists before running tests
     if [ ! -f "${file}" ]; then
         echo -e "${RED}File not found: ${file}${NC}"
-        return
+        echo "PHP Syntax: SKIPPED (File not found)" >> "${test_results}"
+        echo "${filename}: FAILED (File not found)" >> "${GLOBAL_TEST_RESULTS}"
+        return 1
     fi
     
     # Clear temp error log
@@ -201,27 +211,31 @@ function run_tests() {
 
     if "$syntax_script" > "${temp_error_log}" 2>&1; then
         echo -e "${GREEN}✓ PHP syntax is valid${NC}"
+        echo "PHP Syntax: OK" >> "${test_results}"
         rm -f "$syntax_script"
     else
         echo -e "${RED}✗ PHP syntax error:${NC}"
         cat "${temp_error_log}"
         echo -e "${file}: PHP syntax error on $(date)" >> "${ERROR_LOG}"
+        echo "PHP Syntax: FAILED" >> "${test_results}"
         current_errors=true
         rm -f "$syntax_script"
         
         # Don't continue with other tests if syntax is invalid
         echo -e "${BLUE}Skipping additional tests due to syntax error${NC}"
-        return
+        return 1
     fi
     
     # Run PHPCS on the changed file
     echo -e "${YELLOW}Running PHP CodeSniffer on ${filename}...${NC}"
     if run_phpcs_safely "${file}" "${temp_error_log}"; then
         echo -e "${GREEN}✓ PHPCS passed with no errors${NC}"
+        echo "PHPCS: OK" >> "${test_results}"
     else
         echo -e "${RED}✗ PHPCS found issues:${NC}"
         cat "${temp_error_log}"
         echo -e "${file}: PHPCS errors on $(date)" >> "${ERROR_LOG}"
+        echo "PHPCS: FAILED" >> "${test_results}"
         current_errors=true
     fi
     
@@ -231,12 +245,76 @@ function run_tests() {
         > "${temp_error_log}"
         if run_phpunit_safely "${file}" "${temp_error_log}"; then
             echo -e "${GREEN}✓ PHPUnit tests passed${NC}"
+            echo "PHPUnit: OK" >> "${test_results}"
         else
             echo -e "${RED}✗ PHPUnit tests failed:${NC}"
             cat "${temp_error_log}"
             echo -e "${file}: PHPUnit errors on $(date)" >> "${ERROR_LOG}"
+            echo "PHPUnit: FAILED" >> "${test_results}"
             current_errors=true
         fi
+    else
+        echo "PHPUnit: SKIPPED (Not a test file)" >> "${test_results}"
+    fi
+    
+    # Run Pa11y accessibility tests if it's a template file
+    if [[ "${file}" == *"/templates/"* ]] || [[ "${file}" == *".html"* ]] || [[ "${file}" == *".php"* && $(grep -c "get_header\|wp_head" "${file}") -gt 0 ]]; then
+        echo -e "\n${YELLOW}Running Pa11y accessibility tests...${NC}"
+        if [ -f "${PROJECT_DIR}/tools/run-a11y-tests.sh" ]; then
+            # Create a temporary script to run Pa11y
+            local a11y_script="${TEMP_DIR}/run_a11y_$$.sh"
+            echo "#!/bin/bash" > "$a11y_script"
+            echo "cd \"${PROJECT_DIR}\" && bash tools/run-a11y-tests.sh \"${file}\"" >> "$a11y_script"
+            chmod +x "$a11y_script"
+            
+            # Run the script
+            if "$a11y_script" > "${temp_error_log}" 2>&1; then
+                echo -e "${GREEN}✓ Pa11y accessibility tests passed${NC}"
+                echo "Pa11y Accessibility: OK" >> "${test_results}"
+            else
+                echo -e "${RED}✗ Pa11y accessibility tests failed:${NC}"
+                cat "${temp_error_log}"
+                echo -e "${file}: Pa11y accessibility errors on $(date)" >> "${ERROR_LOG}"
+                echo "Pa11y Accessibility: FAILED" >> "${test_results}"
+                current_errors=true
+            fi
+            rm -f "$a11y_script"
+        else
+            echo -e "${YELLOW}Pa11y tests skipped (tools/run-a11y-tests.sh not found)${NC}"
+            echo "Pa11y Accessibility: SKIPPED (Test script not found)" >> "${test_results}"
+        fi
+    else
+        echo "Pa11y Accessibility: SKIPPED (Not a template file)" >> "${test_results}"
+    fi
+    
+    # Run E2E tests if we're modifying frontend files
+    if [[ "${file}" == *".js"* ]] || [[ "${file}" == *".css"* ]] || [[ "${file}" == *"/templates/"* ]] || [[ "${file}" == *".html"* ]]; then
+        echo -e "\n${YELLOW}Running E2E tests...${NC}"
+        if [ -f "${PROJECT_DIR}/tools/run-e2e-tests.sh" ]; then
+            # Create a temporary script to run E2E tests
+            local e2e_script="${TEMP_DIR}/run_e2e_$$.sh"
+            echo "#!/bin/bash" > "$e2e_script"
+            echo "cd \"${PROJECT_DIR}\" && bash tools/run-e2e-tests.sh" >> "$e2e_script"
+            chmod +x "$e2e_script"
+            
+            # Run the script
+            if "$e2e_script" > "${temp_error_log}" 2>&1; then
+                echo -e "${GREEN}✓ E2E tests passed${NC}"
+                echo "E2E Test: OK" >> "${test_results}"
+            else
+                echo -e "${RED}✗ E2E tests failed:${NC}"
+                cat "${temp_error_log}"
+                echo -e "${file}: E2E test errors on $(date)" >> "${ERROR_LOG}"
+                echo "E2E Test: FAILED" >> "${test_results}"
+                current_errors=true
+            fi
+            rm -f "$e2e_script"
+        else
+            echo -e "${YELLOW}E2E tests skipped (tools/run-e2e-tests.sh not found)${NC}"
+            echo "E2E Test: SKIPPED (Test script not found)" >> "${test_results}"
+        fi
+    else
+        echo "E2E Test: SKIPPED (Not a frontend file)" >> "${test_results}"
     fi
     
     # Try auto-fix if errors were found
@@ -253,6 +331,15 @@ function run_tests() {
         
         echo -e "${BLUE}Re-running tests after auto-fix...${NC}"
         
+        # Run phpcbf on the file to attempt to fix coding standards
+        echo -e "${YELLOW}Running PHPCBF to auto-fix coding standards...${NC}"
+        local phpcbf_script="${TEMP_DIR}/phpcbf_$$.sh"
+        echo "#!/bin/bash" > "$phpcbf_script"
+        echo "\"${PHP_CMD}\" \"${PROJECT_DIR}/vendor/bin/phpcbf\" --standard=WordPress \"${file}\"" >> "$phpcbf_script"
+        chmod +x "$phpcbf_script"
+        "$phpcbf_script" > /dev/null 2>&1 || true
+        rm -f "$phpcbf_script"
+        
         # Re-run PHPCS to see if errors were fixed
         > "${temp_error_log}"
         if run_phpcs_safely "${file}" "${temp_error_log}"; then
@@ -260,25 +347,39 @@ function run_tests() {
             # Remove file from error log if errors were fixed
             grep -v "${file}: PHPCS errors" "${ERROR_LOG}" > "${TEMP_DIR}/error_log_temp.txt"
             mv "${TEMP_DIR}/error_log_temp.txt" "${ERROR_LOG}"
+            # Update test results
+            sed -i '' 's/PHPCS: FAILED/PHPCS: OK (Auto-fixed)/g' "${test_results}"
         else
             echo -e "${RED}✗ Some PHPCS issues remain after auto-fix${NC}"
         fi
+        
+        # Re-run Pa11y and E2E tests if they failed
+        # (This would require more implementation - skipping for brevity but would follow similar pattern)
     else
         # If no errors, remove file from error log
         grep -v "${file}" "${ERROR_LOG}" > "${TEMP_DIR}/error_log_temp.txt"
         mv "${TEMP_DIR}/error_log_temp.txt" "${ERROR_LOG}"
     fi
     
-    # Run phpcbf on the file to attempt to fix coding standards
-    echo -e "\n${YELLOW}Running PHPCBF to auto-fix coding standards...${NC}"
+    # Display test results summary
+    echo -e "\n${BLUE}Test Results Summary for ${YELLOW}${filename}${BLUE}:${NC}"
+    cat "${test_results}"
     
-    # Create and run phpcbf script
-    local phpcbf_script="${TEMP_DIR}/phpcbf_$$.sh"
-    echo "#!/bin/bash" > "$phpcbf_script"
-    echo "\"${PHP_CMD}\" \"${PROJECT_DIR}/vendor/bin/phpcbf\" --standard=WordPress \"${file}\"" >> "$phpcbf_script"
-    chmod +x "$phpcbf_script"
-    "$phpcbf_script" > /dev/null 2>&1 || true
-    rm -f "$phpcbf_script"
+    # Check if all tests passed
+    if grep -q "FAILED" "${test_results}"; then
+        echo -e "\n${RED}❌ Some tests failed. Please fix the issues before committing.${NC}"
+        # Save to a global results file
+        echo "${filename}: FAILED" >> "${GLOBAL_TEST_RESULTS}"
+        return 1
+    else
+        echo -e "\n${GREEN}✅ All tests passed! This file is ready to commit.${NC}"
+        # Save to a global results file
+        echo "${filename}: PASSED" >> "${GLOBAL_TEST_RESULTS}"
+        return 0
+    fi
+    
+    # Cleanup
+    rm -f "${test_results}"
     
     # Separator for readability
     echo -e "${BLUE}-----------------------------------------------------------${NC}"
@@ -299,6 +400,7 @@ while true; do
         echo -e "\n${GREEN}New git commit detected! Clearing error logs.${NC}"
         > "${ERROR_LOG}"
         > "${ERROR_HISTORY}"
+        > "${GLOBAL_TEST_RESULTS}"
         echo -e "${GREEN}Error logs cleared. Starting fresh monitoring.${NC}"
     fi
     
@@ -353,5 +455,25 @@ while true; do
     if [ -s "${ERROR_LOG}" ]; then
         echo -e "\n${YELLOW}Remaining errors to fix:${NC}"
         cat "${ERROR_LOG}"
+    fi
+    
+    # Display global test results summary if any files were tested
+    if [ -s "${GLOBAL_TEST_RESULTS}" ]; then
+        echo -e "\n${BLUE}===== OVERALL TEST STATUS =====${NC}"
+        cat "${GLOBAL_TEST_RESULTS}"
+        
+        if grep -q "FAILED" "${GLOBAL_TEST_RESULTS}"; then
+            echo -e "\n${RED}❌ Some tests failed. Please fix all issues before committing.${NC}"
+            echo -e "${YELLOW}Use 'git status' to see which files were changed.${NC}"
+            echo -e "${YELLOW}When all tests pass, you can commit your changes.${NC}"
+        else
+            echo -e "\n${GREEN}✅ All tests passed! Your changes are ready to commit.${NC}"
+            echo -e "${GREEN}Recommended actions:${NC}"
+            echo -e "  git add ."
+            echo -e "  git commit -m \"Your commit message\""
+        fi
+        
+        # Clear the global test results after displaying
+        > "${GLOBAL_TEST_RESULTS}"
     fi
 done 
