@@ -1,6 +1,45 @@
-# Operating System files
+# Development and testing files
+/tests/
+/tools/
+/.github/
+/.vscode/
+/.idea/
+/.cursor/
+/node_modules/
+/vendor/
+/docs/development/
+/docs/testing/
+/docs/workflow/
+
+# Environment files
+.env
+.env.*
+*.log
+*.sql
+*.sqlite
+
+# Build and temp files
+*.tmp
+*.temp
+*.cache
 .DS_Store
 Thumbs.db
+
+# Allow only plugin-specific files
+!/*.php
+!/readme.txt
+!/README.md
+!/CHANGELOG.md
+!/changelog.txt
+!/LICENSE
+!/languages/
+!/includes/
+!/admin/
+!/css/
+!/js/
+!/assets/
+
+# Operating System files
 ._*
 .Spotlight-V100
 .Trashes
@@ -8,39 +47,16 @@ ehthumbs.db
 Desktop.ini
 
 # Editor directories and files
-.idea
-.vscode
-.cursor/
 .cursorrules
 *.sublime-project
 *.sublime-workspace
 *.code-workspace
 
 # Composer
-/vendor/
 composer.lock
-
-# Node.js
-/node_modules/
-npm-debug.log
-yarn-error.log
-package-lock.json
-yarn.lock
-
-# Build files
-/build/
-/dist/
 
 # WordPress local development
 /wp-config-local.php
-
-# Log files
-*.log
-
-# Environment files
-.env
-.env.*
-!.env.example
 
 # Backup files
 *.bak
@@ -49,10 +65,8 @@ yarn.lock
 *.tar
 *.tar.gz
 *.gz
-*.sql
 
 # Temporary files
-*.tmp
 *.swp
 
 # WordPress Core files that might be included accidentally
@@ -66,20 +80,6 @@ wp-content/uploads/
 # Log files
 error_log
 access_log
-
-# Caches
-/cache/
-*.cache
-
-# Temporary files
-tmp/
-temp/
-
-# Testing related
-/phpunit.xml
-.phpunit.result.cache
-test-plugin.php
-fixes.txt
 
 # Translation related files
 # Only include compiled .mo files, exclude debug logs

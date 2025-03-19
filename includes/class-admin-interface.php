@@ -12,27 +12,44 @@ namespace CustomCookieConsent;
 
 class AdminInterface
 {
+    private static $instance = null;
+    private $hook_suffix = null;
+
+    public static function get_instance()
+    {
+        if (null === self::$instance) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
 
     public function __construct()
     {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
-        add_action('wp_ajax_categorize_cookie', [$this, 'ajax_categorize_cookie']);
-        add_action('wp_ajax_bulk_categorize_cookies', [$this, 'ajax_bulk_categorize']);
+        add_action('wp_ajax_custom_cookie_categorize', [$this, 'ajax_categorize_cookie']);
+        add_action('wp_ajax_custom_cookie_bulk_categorize', [$this, 'ajax_bulk_categorize']);
     }
 
     public function add_admin_menu()
     {
-        add_menu_page(
-            __('Cookie Consent by Devora', 'custom-cookie-consent'),
+        // Check if menu already exists
+        global $submenu;
+        if (isset($submenu['custom-cookie-consent'])) {
+            return;
+        }
+
+        // Add main menu
+        $this->hook_suffix = add_menu_page(
+            __('Cookie Consent', 'custom-cookie-consent'),
             __('Cookie Consent', 'custom-cookie-consent'),
             'manage_options',
             'custom-cookie-consent',
-            [$this, 'render_main_page'],
-            'dashicons-privacy',
-            80
+            [$this, 'render_settings_page'],
+            'dashicons-privacy'
         );
 
+        // Add submenus
         add_submenu_page(
             'custom-cookie-consent',
             __('Cookie Scanner', 'custom-cookie-consent'),
@@ -44,7 +61,7 @@ class AdminInterface
 
         add_submenu_page(
             'custom-cookie-consent',
-            __('Cookie Settings', 'custom-cookie-consent'),
+            __('Settings', 'custom-cookie-consent'),
             __('Settings', 'custom-cookie-consent'),
             'manage_options',
             'custom-cookie-settings',
@@ -115,7 +132,7 @@ class AdminInterface
         }
 
         // Localize script with settings and translations
-        wp_localize_script('custom-cookie-admin-js', 'cookieConsentAdmin', [
+        wp_localize_script('custom-cookie-admin-js', 'customCookieAdminSettings', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('cookie_management'),
             'scanNonce' => wp_create_nonce('cookie_scan'),

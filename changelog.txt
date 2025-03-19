@@ -2,21 +2,42 @@
 
 All notable changes to the Custom Cookie Consent plugin are documented in this file.
 
+## 1.2.1 - 2025-03-14
+### Added
+- Analytics and Statistics Dashboard for tracking consent rates and user preferences
+- Anti-Ad-Blocker System to ensure cookie banner displays even with ad blockers
+- Region-Based Consent Banners with specific rules for different regions
+- Auto-Detection of Cookie Data with improved pattern matching
+- Enhanced cookie scanning with automatic categorization
+
+### Updated
+- Improved Granular Consent Handling with better category management
+- Enhanced Google Consent Mode v2 integration with immediate script blocking
+- Better cookie category detection and classification
+- Improved consent storage reliability
+
+### Fixed
+- Fixed banner position handling in JavaScript
+- Resolved issues with cookie banner positioning on various themes
+- Fixed consent not blocking tracking scripts immediately
+- Enhanced consent storage reliability
+- Improved anti-ad-blocker functionality
+
 ## 1.1.9 - 2025-03-13
 ### Fixed
-- Fixed WP Consent API button to correctly link to documentation instead of a non-existent settings page
-- Fixed dynamic banner categories to properly display all configured cookie categories including marketing
-- Fixed issue with marketing cookies not being properly included in the "Accept All" consent flow
-- Enhanced consent data display to work with caching plugins using AJAX for real-time updates
-- Fixed issue with marketing category showing as denied even after clicking "Accept All"
-- Added debugging logs to help troubleshoot consent management issues
+- Fixed WP Consent API button to correctly link to documentation
+- Fixed dynamic banner categories display
+- Fixed marketing cookies handling in "Accept All" consent flow
+- Enhanced consent data display with caching plugins
+- Fixed marketing category consent status issues
+- Added debugging logs for consent management
 
 ### Enhancement
 - Improved consent data persistence across cached pages
-- Added refresh button to consent data display for manual updating
-- Enhanced JavaScript to dynamically include all configured cookie categories
-- Optimized consent data flow between banner, storage, and display
-- Added automatic consent display refresh when consent changes
+- Added refresh button to consent data display
+- Enhanced JavaScript for dynamic cookie categories
+- Optimized consent data flow
+- Added automatic consent display refresh
 
 ## 1.1.8 - 2025-03-12
 ### Added

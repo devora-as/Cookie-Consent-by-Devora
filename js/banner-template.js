@@ -2,7 +2,7 @@
 if (typeof window.bannerTemplate === "undefined") {
   // Create default banner template with optimized HTML structure if no server template exists
   let bannerTemplate = `
-  <div class="cookie-consent-banner" role="dialog" aria-modal="true" aria-labelledby="cookie-consent-title" aria-describedby="cookie-consent-description">
+  <div class="cookie-consent-banner" role="dialog" aria-modal="true" aria-labelledby="cookie-consent-title" aria-describedby="cookie-consent-description" data-position="bottom">
       <button class="cookie-consent-close" aria-label="Lukk cookie-banner">Lukk <span class="close-x" aria-hidden="true">×</span></button>
       <div class="cookie-consent-content">
           <header>
@@ -79,12 +79,12 @@ if (typeof window.bannerTemplate === "undefined") {
   window.bannerTemplate = bannerTemplate;
 
   // Only log in debug mode
-  if (window.cookieConsentSettings?.debug) {
+  if (window.cookieSettings?.debugMode) {
     console.log("Using default template - no server-generated template found");
   }
 } else {
   // Only log in debug mode
-  if (window.cookieConsentSettings?.debug) {
+  if (window.cookieSettings?.debugMode) {
     console.log(
       "Using server-generated template with timestamp: " +
         (window.templateTimestamp || "unknown")

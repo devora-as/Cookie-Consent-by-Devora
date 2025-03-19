@@ -1,0 +1,28 @@
+{
+  "name": "custom-cookie-consent",
+  "version": "1.0.0",
+  "description": "A WordPress plugin for GDPR-compliant cookie consent management with automatic cookie detection.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devora-as/Cookie-Consent-by-Devora.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/devora-as/Cookie-Consent-by-Devora/issues"
+  },
+  "homepage": "https://github.com/devora-as/Cookie-Consent-by-Devora#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.51.1",
+    "pa11y-ci": "^3.1.0"
+  }
+}

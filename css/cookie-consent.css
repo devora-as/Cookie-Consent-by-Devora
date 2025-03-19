@@ -24,6 +24,7 @@
     right: 0;
     transform: translateY(100%);
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
 }
 
 .cookie-consent-banner.position-top {
@@ -32,6 +33,7 @@
     right: 0;
     transform: translateY(-100%);
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100%;
 }
 
 .cookie-consent-banner.position-center {
@@ -58,17 +60,19 @@
     opacity: 0;
     transition: opacity 0.3s ease;
     display: none;
+    visibility: hidden;
 }
 
 .cookie-consent-overlay.visible {
     opacity: 1;
     display: block;
+    visibility: visible;
 }
 
 /* Visible state for all positions */
 .cookie-consent-banner.visible {
     display: block !important; /* Force display when visible class is added */
-    visibility: visible !important; /* Add this */
+    visibility: visible !important;
 }
 
 .cookie-consent-banner.position-bottom.visible {

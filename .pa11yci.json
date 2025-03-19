@@ -1,0 +1,15 @@
+{
+    "defaults": {
+        "standard": "WCAG2AA",
+        "reporters": ["cli"],
+        "timeout": 30000,
+        "wait": 2000,
+        "chromeLaunchConfig": {
+            "args": ["--no-sandbox"]
+        }
+    },
+    "urls": [
+        "https://devora.local/cookie-consent-test-page/",
+        "https://devora.local/cookie-consent-test-page/?show_cookie_banner=1"
+    ]
+}

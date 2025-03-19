@@ -142,6 +142,27 @@ class ConsentManager {
   }
 
   setDefaultConsent() {
+    // Check if dataLayer already has consent settings (from head)
+    let consentAlreadySet = false;
+
+    if (window.dataLayer && Array.isArray(window.dataLayer)) {
+      consentAlreadySet = window.dataLayer.some((item) => {
+        return (
+          Array.isArray(item) && item[0] === "consent" && item[1] === "default"
+        );
+      });
+    }
+
+    // Skip setting default consent if already set in head
+    if (consentAlreadySet) {
+      if (window.cookieConsentSettings?.debug) {
+        console.log(
+          "Default consent already set in head, skipping duplicate initialization"
+        );
+      }
+      return;
+    }
+
     if (!window.dataLayer) {
       window.dataLayer = [];
     }
@@ -461,6 +482,7 @@ class ConsentManager {
   showConsentBanner() {
     // Check if banner template is available when needed
     if (!window.bannerTemplate) {
+      console.error("Banner template not found");
       return;
     }
 
@@ -490,9 +512,33 @@ class ConsentManager {
 
     // Get the banner element
     const banner = document.querySelector(".cookie-consent-banner");
+    if (!banner) {
+      console.error("Banner element not found after appending to DOM");
+      return;
+    }
 
-    // Get position from settings or default to bottom
-    const position = window.cookieConsentSettings?.position || "bottom";
+    // Get position from data attribute, settings, or default to bottom
+    let position =
+      banner.dataset.position || window.cookieSettings?.position || "bottom";
+
+    // Validate position value - ensure it's one of the valid options
+    if (!["bottom", "top", "center"].includes(position)) {
+      console.warn(
+        `Invalid position value: ${position}. Defaulting to bottom.`
+      );
+      position = "bottom";
+    }
+
+    if (window.cookieSettings?.debugMode) {
+      console.log("Banner position:", position);
+    }
+
+    // Remove any existing position classes
+    banner.classList.remove(
+      "position-bottom",
+      "position-top",
+      "position-center"
+    );
 
     // Add position class
     banner.classList.add(`position-${position}`);
@@ -503,7 +549,13 @@ class ConsentManager {
       overlay.className = "cookie-consent-overlay";
       document.body.appendChild(overlay);
 
-      // Show overlay
+      // First set display to block (it starts hidden in CSS)
+      overlay.style.display = "block";
+
+      // Force a reflow before adding the visible class to ensure animation works
+      overlay.offsetHeight;
+
+      // Add visible class to trigger animation
       setTimeout(() => {
         overlay.classList.add("visible");
       }, 10);
@@ -719,18 +771,26 @@ class ConsentManager {
       return;
     }
 
-    // Get position from the banner's class or from the html data attribute
+    // Determine position from classes or data attribute
     let position = "bottom";
     if (banner.classList.contains("position-top")) {
       position = "top";
     } else if (banner.classList.contains("position-center")) {
       position = "center";
+    } else if (banner.dataset.position) {
+      position = banner.dataset.position;
     }
 
     // Handle overlay for center/modal position
     const overlay = document.querySelector(".cookie-consent-overlay");
     if (position === "center" && overlay) {
       overlay.classList.remove("visible");
+      // Add a slight delay to fade out the overlay
+      setTimeout(() => {
+        if (overlay && overlay.parentNode) {
+          overlay.style.display = "none";
+        }
+      }, 300); // Match this timing with your CSS transition duration
     }
 
     // Remove visible class to trigger exit animation
@@ -740,18 +800,22 @@ class ConsentManager {
     if (this.previouslyFocusedElement) {
       // Delay focus restoration until after animation completes
       setTimeout(() => {
-        this.previouslyFocusedElement.focus();
-        this.previouslyFocusedElement = null;
+        if (this.previouslyFocusedElement) {
+          this.previouslyFocusedElement.focus();
+          this.previouslyFocusedElement = null;
+        }
       }, 400);
     }
 
     // Remove banner and overlay after animation completes
     setTimeout(() => {
-      banner.remove();
-      if (overlay) {
+      if (banner && banner.parentNode) {
+        banner.remove();
+      }
+      if (overlay && overlay.parentNode) {
         overlay.remove();
       }
-    }, 400);
+    }, 400); // Match this timing with your CSS transition duration
 
     // Remove keyboard event listener
     document.removeEventListener("keydown", this.handleEscapeKey);

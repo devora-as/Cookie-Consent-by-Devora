@@ -6,8 +6,6 @@
  * Dynamically generates the cookie consent banner based on detected cookies.
  *
  * @package CustomCookieConsent
- *
- * @phpcs:disable WordPress.Files.FileName.InvalidClassFileName
  */
 
 namespace CustomCookieConsent;
@@ -22,6 +20,7 @@ namespace CustomCookieConsent;
  */
 class BannerGenerator
 {
+
 
 
 
@@ -279,73 +278,6 @@ class BannerGenerator
     }
 
     /**
-     * Force regeneration of the banner template.
-     *
-     * Used when position setting changes to ensure banner displays correctly.
-     *
-     * @return void
-     */
-    public function force_template_regeneration()
-    {
-        // Static variable to prevent infinite loops
-        static $regenerating = false;
-
-        if ($regenerating) {
-            return;
-        }
-
-        $regenerating = true;
-
-        // Get all categorized cookies
-        $detected   = get_option('custom_cookie_detected', array());
-        $categories = array();
-
-        // Group cookies by category
-        foreach ($detected as $cookie) {
-            if ('categorized' === $cookie['status']) {
-                $category = $cookie['category'];
-                if (! isset($categories[$category])) {
-                    $categories[$category] = array(
-                        'cookies' => array(),
-                        'sources' => array(),
-                    );
-                }
-
-                $categories[$category]['cookies'][] = $cookie;
-
-                if (! empty($cookie['source']) && ! in_array($cookie['source'], $categories[$category]['sources'], true)) {
-                    $categories[$category]['sources'][] = $cookie['source'];
-                }
-            }
-        }
-
-        // Get banner settings
-        $settings = get_option('custom_cookie_settings', array());
-
-        // Generate banner template
-        $template = $this->generate_template($categories, $settings);
-
-        // Add timestamp to force browser refresh
-        $template = str_replace(
-            'window.bannerTemplate = bannerTemplate;',
-            'window.bannerTemplate = bannerTemplate; window.templateTimestamp = "' . time() . '";',
-            $template
-        );
-
-        // Save the template
-        update_option('custom_cookie_banner_template', $template);
-
-        // Update timestamp
-        update_option('custom_cookie_banner_last_updated', time());
-
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->log_debug('Banner template forcefully regenerated due to position change');
-        }
-
-        $regenerating = false;
-    }
-
-    /**
      * Generate the cookie consent banner HTML.
      *
      * @return string The HTML for the cookie consent banner.
@@ -468,5 +400,72 @@ class BannerGenerator
         $output .= '</div>'; // End of banner.
 
         return $output;
+    }
+
+    /**
+     * Force regeneration of the banner template.
+     *
+     * Used when position setting changes to ensure banner displays correctly.
+     *
+     * @return void
+     */
+    public function force_template_regeneration()
+    {
+        // Static variable to prevent infinite loops
+        static $regenerating = false;
+
+        if ($regenerating) {
+            return;
+        }
+
+        $regenerating = true;
+
+        // Get all categorized cookies
+        $detected   = get_option('custom_cookie_detected', array());
+        $categories = array();
+
+        // Group cookies by category
+        foreach ($detected as $cookie) {
+            if ('categorized' === $cookie['status']) {
+                $category = $cookie['category'];
+                if (! isset($categories[$category])) {
+                    $categories[$category] = array(
+                        'cookies' => array(),
+                        'sources' => array(),
+                    );
+                }
+
+                $categories[$category]['cookies'][] = $cookie;
+
+                if (! empty($cookie['source']) && ! in_array($cookie['source'], $categories[$category]['sources'], true)) {
+                    $categories[$category]['sources'][] = $cookie['source'];
+                }
+            }
+        }
+
+        // Get banner settings
+        $settings = get_option('custom_cookie_settings', array());
+
+        // Generate banner template
+        $template = $this->generate_template($categories, $settings);
+
+        // Add timestamp to force browser refresh
+        $template = str_replace(
+            'window.bannerTemplate = bannerTemplate;',
+            'window.bannerTemplate = bannerTemplate; window.templateTimestamp = "' . time() . '";',
+            $template
+        );
+
+        // Save the template
+        update_option('custom_cookie_banner_template', $template);
+
+        // Update timestamp
+        update_option('custom_cookie_banner_last_updated', time());
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            $this->log_debug('Banner template forcefully regenerated due to position change');
+        }
+
+        $regenerating = false;
     }
 }

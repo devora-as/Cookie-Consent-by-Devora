@@ -137,7 +137,7 @@
         url: customCookieAdminSettings.ajaxUrl,
         type: "POST",
         data: {
-          action: "categorize_cookie",
+          action: "custom_cookie_categorize",
           cookie_name: cookieName,
           category: category,
           nonce: customCookieAdminSettings.nonce,
@@ -209,7 +209,7 @@
         url: customCookieAdminSettings.ajaxUrl,
         type: "POST",
         data: {
-          action: "bulk_categorize_cookies",
+          action: "custom_cookie_bulk_categorize",
           cookies: JSON.stringify(selectedCookies),
           nonce: customCookieAdminSettings.nonce,
         },
@@ -249,7 +249,7 @@
 
       // Determine which settings are being saved for the success message
       let successMessage = "Settings saved successfully";
-      let formAction = "save_cookie_settings"; // Default action
+      let formAction = "custom_cookie_save_settings"; // Default action
 
       // Always use the same nonce for all settings forms
       let nonceValue = customCookieAdminSettings.nonce;
@@ -260,7 +260,7 @@
         successMessage =
           customCookieAdminSettings.messages.integrationSaved ||
           "Integration settings saved successfully";
-        formAction = "save_integration_settings"; // Use a specific action for integration settings
+        formAction = "custom_cookie_save_integration_settings"; // Use a specific action for integration settings
       } else if ($form.hasClass("js-scanner-settings-form")) {
         debugLog("Saving scanner settings");
         successMessage =
@@ -298,17 +298,38 @@
         const hubspotChecked = $form
           .find('input[name="hubspot_integration"]')
           .is(":checked");
+        const directTrackingChecked = $form
+          .find('input[name="direct_tracking_enabled"]')
+          .is(":checked");
 
         debugLog("Checkbox states before submission:", {
           wp_consent_api: wpConsentChecked,
           sitekit_integration: siteKitChecked,
           hubspot_integration: hubspotChecked,
+          direct_tracking_enabled: directTrackingChecked,
         });
 
         // Ensure checkbox values are set properly (true/false values)
         formData.set("wp_consent_api", wpConsentChecked ? "1" : "0");
         formData.set("sitekit_integration", siteKitChecked ? "1" : "0");
         formData.set("hubspot_integration", hubspotChecked ? "1" : "0");
+        formData.set(
+          "direct_tracking_enabled",
+          directTrackingChecked ? "1" : "0"
+        );
+
+        // Get tracking ID values
+        const gaTrackingId = $form.find('input[name="ga_tracking_id"]').val();
+        const gtmId = $form.find('input[name="gtm_id"]').val();
+
+        // Add them to the form data
+        formData.set("ga_tracking_id", gaTrackingId || "");
+        formData.set("gtm_id", gtmId || "");
+
+        debugLog("Tracking IDs:", {
+          ga_tracking_id: gaTrackingId,
+          gtm_id: gtmId,
+        });
       }
 
       // Special handling for banner settings form - ensure position is included
@@ -318,6 +339,13 @@
           debugLog("Setting banner position to:", position);
           formData.set("position", position);
         }
+
+        // Handle anti-blocker checkbox
+        const antiBlockerEnabled = $form
+          .find('input[name="enable_anti_blocker"]')
+          .is(":checked");
+        formData.set("enable_anti_blocker", antiBlockerEnabled ? "1" : "0");
+        debugLog("Anti-blocker setting:", antiBlockerEnabled);
       }
 
       // Log form data for debugging

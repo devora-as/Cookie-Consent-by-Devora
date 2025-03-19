@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<ruleset name="Custom Cookie Consent">
+    <description>Coding standards for the Custom Cookie Consent plugin</description>
+
+    <!-- Run against the plugin files -->
+    <file>.</file>
+
+    <!-- Exclude paths -->
+    <exclude-pattern>/vendor/*</exclude-pattern>
+    <exclude-pattern>/node_modules/*</exclude-pattern>
+    <exclude-pattern>/.git/*</exclude-pattern>
+    <exclude-pattern>/.cursor/*</exclude-pattern>
+    <exclude-pattern>/.github/*</exclude-pattern>
+    <exclude-pattern>/tests/e2e/*</exclude-pattern>
+    <exclude-pattern>/logs/*</exclude-pattern>
+    <exclude-pattern>/temp/*</exclude-pattern>
+    <exclude-pattern>/tmp/*</exclude-pattern>
+
+    <!-- Only scan PHP files -->
+    <arg name="extensions" value="php"/>
+
+    <!-- Show progress, show the error codes for each message (source) -->
+    <arg value="ps"/>
+    <arg name="colors"/>
+
+    <!-- Use WordPress Coding Standards -->
+    <rule ref="WordPress">
+        <!-- Allow file names with dashes -->
+        <exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
+        <!-- Allow class file names without 'class-' prefix -->
+        <exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+        <!-- Allow variable names with underscores -->
+        <exclude name="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase"/>
+        <!-- Allow short array syntax -->
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax.Found"/>
+    </rule>
+
+    <!-- Let's also check for PHP cross-version compatibility -->
+    <config name="testVersion" value="7.4-"/>
+    <rule ref="PHPCompatibility"/>
+    
+    <!-- Enable the WordPress autoloader for PHPCompatibility -->
+    <autoload>vendor/squizlabs/php_codesniffer/autoload.php</autoload>
+</ruleset> 

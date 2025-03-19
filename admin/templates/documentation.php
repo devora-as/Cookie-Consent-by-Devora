@@ -118,6 +118,22 @@ if (!defined('ABSPATH')) {
         </div>
 
         <div class="cookie-documentation-section">
+            <h3><?php _e('Anti-Ad-Blocker Protection', 'custom-cookie-consent'); ?></h3>
+            <p><?php _e('The Anti-Ad-Blocker Protection feature ensures your cookie consent banner remains visible and functional even when users have ad blockers installed:', 'custom-cookie-consent'); ?></p>
+
+            <ul>
+                <li><strong><?php _e('Purpose:', 'custom-cookie-consent'); ?></strong> <?php _e('Some ad blockers mistakenly block cookie banners, preventing users from expressing their consent preferences. This can lead to non-compliance with GDPR and ePrivacy regulations.', 'custom-cookie-consent'); ?></li>
+                <li><strong><?php _e('How it works:', 'custom-cookie-consent'); ?></strong> <?php _e('When enabled, this feature uses advanced techniques to detect if ad blockers are interfering with your consent banner and deploys countermeasures to ensure the banner is displayed properly.', 'custom-cookie-consent'); ?></li>
+                <li><strong><?php _e('GDPR Compliance:', 'custom-cookie-consent'); ?></strong> <?php _e('This feature maintains compliance by ensuring your visitors can always access consent options, while still respecting their chosen preferences.', 'custom-cookie-consent'); ?></li>
+            </ul>
+
+            <div class="cookie-documentation-tip">
+                <h4><?php _e('Recommendation:', 'custom-cookie-consent'); ?></h4>
+                <p><?php _e('It\'s recommended to enable this feature to ensure all visitors have the opportunity to manage their cookie preferences, which is required for compliance with privacy regulations. Ad blockers should not prevent users from making informed consent choices.', 'custom-cookie-consent'); ?></p>
+            </div>
+        </div>
+
+        <div class="cookie-documentation-section">
             <h3><?php _e('Google Integration Setup', 'custom-cookie-consent'); ?></h3>
             <p><?php _e('For proper Google service integration:', 'custom-cookie-consent'); ?></p>
 
@@ -138,6 +154,7 @@ if (!defined('ABSPATH')) {
             <ul class="cookie-documentation-checklist">
                 <li><?php _e('Configure the banner position and appearance in Banner Settings', 'custom-cookie-consent'); ?></li>
                 <li><?php _e('Set up your Privacy Policy URL and Cookie Policy URL', 'custom-cookie-consent'); ?></li>
+                <li><?php _e('Enable Anti-Ad-Blocker Protection to ensure the banner is displayed to all users', 'custom-cookie-consent'); ?></li>
                 <li><?php _e('Configure appropriate region settings (Norway, EEA, or Global)', 'custom-cookie-consent'); ?></li>
                 <li><?php _e('Add a cookie settings link to your site footer using the [cookie_settings] shortcode', 'custom-cookie-consent'); ?></li>
                 <li><?php _e('Customize the text for each consent category to accurately describe what cookies are used for', 'custom-cookie-consent'); ?></li>
@@ -164,6 +181,9 @@ if (!defined('ABSPATH')) {
 
             <h3><?php _e('Do I need to update my cookie policy with this plugin?', 'custom-cookie-consent'); ?></h3>
             <p><?php _e('Yes. You should update your cookie policy to reflect all cookies used on your site, their purposes, and how users can manage them. The plugin\'s cookie scanner can help identify all cookies that need to be documented.', 'custom-cookie-consent'); ?></p>
+
+            <h3><?php _e('Is the Anti-Ad-Blocker feature compliant with privacy regulations?', 'custom-cookie-consent'); ?></h3>
+            <p><?php _e('Yes. The Anti-Ad-Blocker feature is designed to be fully compliant with GDPR and other privacy regulations. It doesn\'t bypass user consent - it simply ensures that users can see the consent banner to make an informed choice. Once a user makes their choice (accept or reject), the plugin still honors those preferences exactly as configured.', 'custom-cookie-consent'); ?></p>
         </div>
     </div>
 </div>

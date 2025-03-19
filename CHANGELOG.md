@@ -5,6 +5,31 @@ All notable changes to the "Cookie Consent by Devora" plugin will be documented 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2025-03-14
+
+### Added
+
+- Analytics and Statistics Dashboard for tracking consent rates and user preferences
+- Anti-Ad-Blocker System to ensure cookie banner displays even with ad blockers
+- Region-Based Consent Banners with specific rules for different regions
+- Auto-Detection of Cookie Data with improved pattern matching
+- Enhanced cookie scanning with automatic categorization
+
+### Updated
+
+- Improved Granular Consent Handling with better category management
+- Enhanced Google Consent Mode v2 integration with immediate script blocking
+- Better cookie category detection and classification
+- Improved consent storage reliability
+
+### Fixed
+
+- Fixed banner position handling in JavaScript
+- Resolved issues with cookie banner positioning on various themes
+- Fixed consent not blocking tracking scripts immediately
+- Enhanced consent storage reliability
+- Improved anti-ad-blocker functionality
+
 ## [1.2.0] - 2023-05-22
 
 ### Added
