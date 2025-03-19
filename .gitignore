@@ -1,8 +1,4 @@
 # Development and testing files
-/bin/
-/e2e-server/
-/playwright-report/
-/test-results/
 /tests/
 /tools/
 /.github/
