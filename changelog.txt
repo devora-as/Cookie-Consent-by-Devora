@@ -2,7 +2,7 @@
 
 All notable changes to the Custom Cookie Consent plugin are documented in this file.
 
-## 1.2.1 - 2025-03-14
+## 1.2.1 - 2025-03-19
 ### Added
 - Analytics and Statistics Dashboard for tracking consent rates and user preferences
 - Anti-Ad-Blocker System to ensure cookie banner displays even with ad blockers

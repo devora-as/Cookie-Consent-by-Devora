@@ -132,57 +132,145 @@ if (! defined('ABSPATH')) {
         <form class="cookie-consent-settings-form js-integration-settings-form" method="post" action="">
             <?php wp_nonce_field('custom_cookie_nonce', 'nonce'); ?>
 
-            <div class="form-field">
-                <label>
-                    <input type="checkbox" name="wp_consent_api" value="1" <?php checked($settings['wp_consent_api'] ?? false); ?>>
-                    <?php _e('WP Consent API Integration', 'custom-cookie-consent'); ?>
-                </label>
-                <p class="description"><?php _e('Register with the WordPress Consent API for enhanced plugin compatibility.', 'custom-cookie-consent'); ?></p>
-                <?php if ($settings['wp_consent_api'] ?? false) : ?>
-                    <?php if (! function_exists('wp_has_consent')) : ?>
-                        <div class="notice notice-warning inline">
-                            <p><?php _e('The WP Consent API plugin is not active. Please install and activate the <a href="https://wordpress.org/plugins/wp-consent-api/" target="_blank">WP Consent API plugin</a> to use this integration.', 'custom-cookie-consent'); ?></p>
-                        </div>
-                    <?php else : ?>
-                        <div class="notice notice-success inline">
-                            <p><?php _e('WP Consent API is active and integrated.', 'custom-cookie-consent'); ?></p>
-                        </div>
+            <!-- Matomo Integration Section -->
+            <div class="settings-section">
+                <h3>
+                    <span class="dashicons dashicons-chart-area"></span>
+                    <?php _e('Matomo Analytics Integration', 'custom-cookie-consent'); ?>
+                </h3>
+                <p class="description"><?php _e('Configure Matomo Analytics integration settings.', 'custom-cookie-consent'); ?></p>
+
+                <div class="form-field">
+                    <label>
+                        <input type="checkbox" name="enable_matomo" value="1" <?php checked($settings['enable_matomo'] ?? false); ?>>
+                        <?php _e('Enable Matomo Integration', 'custom-cookie-consent'); ?>
+                    </label>
+                    <p class="description"><?php _e('Enable integration with Matomo Analytics for privacy-focused tracking.', 'custom-cookie-consent'); ?></p>
+                </div>
+
+                <div class="form-field matomo-settings" style="display: <?php echo ($settings['enable_matomo'] ?? false) ? 'block' : 'none'; ?>">
+                    <label>
+                        <input type="radio" name="matomo_type" value="cloud" <?php checked($settings['matomo_type'] ?? '', 'cloud'); ?>>
+                        <?php _e('Matomo Cloud', 'custom-cookie-consent'); ?>
+                    </label>
+                    <label>
+                        <input type="radio" name="matomo_type" value="self_hosted" <?php checked($settings['matomo_type'] ?? '', 'self_hosted'); ?>>
+                        <?php _e('Self-hosted (On-Premise)', 'custom-cookie-consent'); ?>
+                    </label>
+                </div>
+
+                <div class="form-field matomo-cloud-settings" style="display: <?php echo ($settings['matomo_type'] ?? '') === 'cloud' ? 'block' : 'none'; ?>">
+                    <label for="matomo_cloud_url"><?php _e('Matomo Cloud URL', 'custom-cookie-consent'); ?></label>
+                    <input type="url" id="matomo_cloud_url" name="matomo_cloud_url" value="<?php echo esc_attr($settings['matomo_cloud_url'] ?? ''); ?>" class="regular-text">
+                    <p class="description"><?php _e('Your Matomo Cloud URL (e.g., https://your-account.matomo.cloud)', 'custom-cookie-consent'); ?></p>
+
+                    <label for="matomo_site_id"><?php _e('Site ID', 'custom-cookie-consent'); ?></label>
+                    <input type="number" id="matomo_site_id" name="matomo_site_id" value="<?php echo esc_attr($settings['matomo_site_id'] ?? ''); ?>" class="small-text">
+                    <p class="description"><?php _e('Your Matomo Site ID', 'custom-cookie-consent'); ?></p>
+                </div>
+
+                <div class="form-field matomo-self-hosted-settings" style="display: <?php echo ($settings['matomo_type'] ?? '') === 'self_hosted' ? 'block' : 'none'; ?>">
+                    <label for="matomo_url"><?php _e('Matomo Installation URL', 'custom-cookie-consent'); ?></label>
+                    <input type="url" id="matomo_url" name="matomo_url" value="<?php echo esc_attr($settings['matomo_url'] ?? ''); ?>" class="regular-text">
+                    <p class="description"><?php _e('URL where your Matomo is installed (e.g., https://analytics.your-domain.com)', 'custom-cookie-consent'); ?></p>
+
+                    <label for="matomo_self_hosted_site_id"><?php _e('Site ID', 'custom-cookie-consent'); ?></label>
+                    <input type="number" id="matomo_self_hosted_site_id" name="matomo_self_hosted_site_id" value="<?php echo esc_attr($settings['matomo_self_hosted_site_id'] ?? ''); ?>" class="small-text">
+                    <p class="description"><?php _e('Your Matomo Site ID', 'custom-cookie-consent'); ?></p>
+                </div>
+
+                <div class="form-field matomo-settings" style="display: <?php echo ($settings['enable_matomo'] ?? false) ? 'block' : 'none'; ?>">
+                    <h4><?php _e('Privacy Settings', 'custom-cookie-consent'); ?></h4>
+
+                    <label>
+                        <input type="checkbox" name="matomo_require_consent" value="1" <?php checked($settings['matomo_require_consent'] ?? true); ?>>
+                        <?php _e('Require Consent Before Tracking', 'custom-cookie-consent'); ?>
+                    </label>
+                    <p class="description"><?php _e('Only track visitors after they give consent for analytics cookies.', 'custom-cookie-consent'); ?></p>
+
+                    <label>
+                        <input type="checkbox" name="matomo_respect_dnt" value="1" <?php checked($settings['matomo_respect_dnt'] ?? true); ?>>
+                        <?php _e('Respect Do Not Track (DNT)', 'custom-cookie-consent'); ?>
+                    </label>
+                    <p class="description"><?php _e('Honor the visitor\'s DNT (Do Not Track) browser setting.', 'custom-cookie-consent'); ?></p>
+
+                    <label>
+                        <input type="checkbox" name="matomo_no_cookies" value="1" <?php checked($settings['matomo_no_cookies'] ?? false); ?>>
+                        <?php _e('Cookie-less Tracking', 'custom-cookie-consent'); ?>
+                    </label>
+                    <p class="description"><?php _e('Track without using cookies. Note: This will affect data accuracy for returning visitors.', 'custom-cookie-consent'); ?></p>
+                </div>
+            </div>
+
+            <!-- Google Services Section -->
+            <div class="settings-section">
+                <h3>
+                    <span class="dashicons dashicons-google"></span>
+                    <?php _e('Google Services Integration', 'custom-cookie-consent'); ?>
+                </h3>
+                <p class="description"><?php _e('Configure Google Analytics and Tag Manager integration settings.', 'custom-cookie-consent'); ?></p>
+
+                <div class="form-field">
+                    <label>
+                        <input type="checkbox" name="sitekit_integration" value="1" <?php checked($settings['sitekit_integration'] ?? false); ?>>
+                        <?php _e('Google Site Kit Integration', 'custom-cookie-consent'); ?>
+                    </label>
+                    <p class="description"><?php _e('Manage Google Site Kit cookies with consent mode v2.', 'custom-cookie-consent'); ?></p>
+                </div>
+
+                <div class="form-field">
+                    <label for="direct_tracking_enabled"><?php _e('Enable Direct Tracking Integration', 'custom-cookie-consent'); ?></label>
+                    <input type="checkbox" id="direct_tracking_enabled" name="direct_tracking_enabled" value="1" <?php checked($settings['direct_tracking_enabled'] ?? false); ?>>
+                    <p class="description"><?php _e('Enable direct integration with tracking scripts (Google Analytics, GTM). This can be used alongside or instead of Google Site Kit.', 'custom-cookie-consent'); ?></p>
+                </div>
+
+                <div class="form-field tracking-code-fields" style="<?php echo ($settings['direct_tracking_enabled'] ?? false) ? '' : 'display: none;'; ?>">
+                    <label for="ga_tracking_id"><?php _e('Google Analytics 4 Measurement ID', 'custom-cookie-consent'); ?></label>
+                    <input type="text" id="ga_tracking_id" name="ga_tracking_id" value="<?php echo esc_attr($settings['ga_tracking_id'] ?? ''); ?>" placeholder="G-XXXXXXXXXX">
+                    <p class="description"><?php _e('Your Google Analytics 4 Measurement ID (e.g., G-XXXXXXXXXX).', 'custom-cookie-consent'); ?></p>
+                </div>
+
+                <div class="form-field tracking-code-fields" style="<?php echo ($settings['direct_tracking_enabled'] ?? false) ? '' : 'display: none;'; ?>">
+                    <label for="gtm_id"><?php _e('Google Tag Manager ID', 'custom-cookie-consent'); ?></label>
+                    <input type="text" id="gtm_id" name="gtm_id" value="<?php echo esc_attr($settings['gtm_id'] ?? ''); ?>" placeholder="GTM-XXXXXXX">
+                    <p class="description"><?php _e('Your Google Tag Manager container ID (e.g., GTM-XXXXXXX).', 'custom-cookie-consent'); ?></p>
+                </div>
+            </div>
+
+            <!-- Other Integrations Section -->
+            <div class="settings-section">
+                <h3>
+                    <span class="dashicons dashicons-admin-plugins"></span>
+                    <?php _e('Other Integrations', 'custom-cookie-consent'); ?>
+                </h3>
+                <p class="description"><?php _e('Configure additional third-party integrations.', 'custom-cookie-consent'); ?></p>
+
+                <div class="form-field">
+                    <label>
+                        <input type="checkbox" name="wp_consent_api" value="1" <?php checked($settings['wp_consent_api'] ?? false); ?>>
+                        <?php _e('WP Consent API Integration', 'custom-cookie-consent'); ?>
+                    </label>
+                    <p class="description"><?php _e('Register with the WordPress Consent API for enhanced plugin compatibility.', 'custom-cookie-consent'); ?></p>
+                    <?php if ($settings['wp_consent_api'] ?? false) : ?>
+                        <?php if (! function_exists('wp_has_consent')) : ?>
+                            <div class="notice notice-warning inline">
+                                <p><?php _e('The WP Consent API plugin is not active. Please install and activate the <a href="https://wordpress.org/plugins/wp-consent-api/" target="_blank">WP Consent API plugin</a> to use this integration.', 'custom-cookie-consent'); ?></p>
+                            </div>
+                        <?php else : ?>
+                            <div class="notice notice-success inline">
+                                <p><?php _e('WP Consent API is active and integrated.', 'custom-cookie-consent'); ?></p>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
-                <?php endif; ?>
-            </div>
+                </div>
 
-            <div class="form-field">
-                <label>
-                    <input type="checkbox" name="sitekit_integration" value="1" <?php checked($settings['sitekit_integration'] ?? false); ?>>
-                    <?php _e('Google Site Kit Integration', 'custom-cookie-consent'); ?>
-                </label>
-                <p class="description"><?php _e('Manage Google Site Kit cookies with consent mode v2.', 'custom-cookie-consent'); ?></p>
-            </div>
-
-            <div class="form-field">
-                <label>
-                    <input type="checkbox" name="hubspot_integration" value="1" <?php checked($settings['hubspot_integration'] ?? false); ?>>
-                    <?php _e('HubSpot Integration', 'custom-cookie-consent'); ?>
-                </label>
-                <p class="description"><?php _e('Control HubSpot tracking features based on user consent.', 'custom-cookie-consent'); ?></p>
-            </div>
-
-            <div class="form-field">
-                <label for="direct_tracking_enabled"><?php _e('Enable Direct Tracking Integration', 'custom-cookie-consent'); ?></label>
-                <input type="checkbox" id="direct_tracking_enabled" name="direct_tracking_enabled" value="1" <?php checked($settings['direct_tracking_enabled'] ?? false); ?>>
-                <p class="description"><?php _e('Enable direct integration with tracking scripts (Google Analytics, GTM). This can be used alongside or instead of Google Site Kit.', 'custom-cookie-consent'); ?></p>
-            </div>
-
-            <div class="form-field tracking-code-fields" style="<?php echo ($settings['direct_tracking_enabled'] ?? false) ? '' : 'display: none;'; ?>">
-                <label for="ga_tracking_id"><?php _e('Google Analytics 4 Measurement ID', 'custom-cookie-consent'); ?></label>
-                <input type="text" id="ga_tracking_id" name="ga_tracking_id" value="<?php echo esc_attr($settings['ga_tracking_id'] ?? ''); ?>" placeholder="G-XXXXXXXXXX">
-                <p class="description"><?php _e('Your Google Analytics 4 Measurement ID (e.g., G-XXXXXXXXXX).', 'custom-cookie-consent'); ?></p>
-            </div>
-
-            <div class="form-field tracking-code-fields" style="<?php echo ($settings['direct_tracking_enabled'] ?? false) ? '' : 'display: none;'; ?>">
-                <label for="gtm_id"><?php _e('Google Tag Manager ID', 'custom-cookie-consent'); ?></label>
-                <input type="text" id="gtm_id" name="gtm_id" value="<?php echo esc_attr($settings['gtm_id'] ?? ''); ?>" placeholder="GTM-XXXXXXX">
-                <p class="description"><?php _e('Your Google Tag Manager container ID (e.g., GTM-XXXXXXX).', 'custom-cookie-consent'); ?></p>
+                <div class="form-field">
+                    <label>
+                        <input type="checkbox" name="hubspot_integration" value="1" <?php checked($settings['hubspot_integration'] ?? false); ?>>
+                        <?php _e('HubSpot Integration', 'custom-cookie-consent'); ?>
+                    </label>
+                    <p class="description"><?php _e('Control HubSpot tracking features based on user consent.', 'custom-cookie-consent'); ?></p>
+                </div>
             </div>
 
             <div class="form-field">

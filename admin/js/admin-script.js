@@ -11,6 +11,18 @@
     init: function () {
       this.bindEvents();
       this.initUI();
+
+      // Handle Matomo settings visibility
+      $('input[name="enable_matomo"]').on("change", function () {
+        $(".matomo-settings").toggle($(this).is(":checked"));
+      });
+
+      // Handle Matomo type selection
+      $('input[name="matomo_type"]').on("change", function () {
+        const type = $(this).val();
+        $(".matomo-cloud-settings").toggle(type === "cloud");
+        $(".matomo-self-hosted-settings").toggle(type === "self_hosted");
+      });
     },
 
     bindEvents: function () {
@@ -347,6 +359,65 @@
         formData.set("enable_anti_blocker", antiBlockerEnabled ? "1" : "0");
         debugLog("Anti-blocker setting:", antiBlockerEnabled);
       }
+
+      // Add Matomo settings
+      const matomoEnabled = $form
+        .find('input[name="enable_matomo"]')
+        .is(":checked");
+      formData.set("enable_matomo", matomoEnabled ? "1" : "0");
+
+      if (matomoEnabled) {
+        const matomoType = $form
+          .find('input[name="matomo_type"]:checked')
+          .val();
+        formData.set("matomo_type", matomoType);
+
+        if (matomoType === "cloud") {
+          formData.set(
+            "matomo_cloud_url",
+            $form.find("#matomo_cloud_url").val()
+          );
+          formData.set("matomo_site_id", $form.find("#matomo_site_id").val());
+        } else {
+          formData.set("matomo_url", $form.find("#matomo_url").val());
+          formData.set(
+            "matomo_self_hosted_site_id",
+            $form.find("#matomo_self_hosted_site_id").val()
+          );
+        }
+
+        formData.set(
+          "matomo_require_consent",
+          $form.find('input[name="matomo_require_consent"]').is(":checked")
+            ? "1"
+            : "0"
+        );
+        formData.set(
+          "matomo_respect_dnt",
+          $form.find('input[name="matomo_respect_dnt"]').is(":checked")
+            ? "1"
+            : "0"
+        );
+        formData.set(
+          "matomo_no_cookies",
+          $form.find('input[name="matomo_no_cookies"]').is(":checked")
+            ? "1"
+            : "0"
+        );
+      }
+
+      // Debug log Matomo settings
+      debugLog("Matomo settings:", {
+        enabled: matomoEnabled,
+        type: formData.get("matomo_type"),
+        cloudUrl: formData.get("matomo_cloud_url"),
+        siteId: formData.get("matomo_site_id"),
+        selfHostedUrl: formData.get("matomo_url"),
+        selfHostedSiteId: formData.get("matomo_self_hosted_site_id"),
+        requireConsent: formData.get("matomo_require_consent"),
+        respectDnt: formData.get("matomo_respect_dnt"),
+        noCookies: formData.get("matomo_no_cookies"),
+      });
 
       // Log form data for debugging
       if (

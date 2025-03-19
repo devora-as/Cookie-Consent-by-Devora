@@ -261,6 +261,50 @@
     color: #3d5cc7;
 }
 
+/* Matomo Integration Settings */
+.matomo-settings {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+}
+
+.matomo-settings h4 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.matomo-settings label {
+    display: block;
+    margin-bottom: 10px;
+}
+
+.matomo-settings input[type="radio"] {
+    margin-right: 8px;
+}
+
+.matomo-settings input[type="radio"] + label {
+    display: inline;
+    margin-right: 15px;
+}
+
+.matomo-cloud-settings,
+.matomo-self-hosted-settings {
+    margin-top: 15px;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+}
+
+.matomo-settings .description {
+    margin: 5px 0 15px;
+    color: #666;
+}
+
 /* Responsive */
 @media screen and (max-width: 782px) {
     .cookie-consent-stats {

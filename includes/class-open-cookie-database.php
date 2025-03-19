@@ -65,6 +65,11 @@ class OpenCookieDatabase
      */
     public function register_update_schedule()
     {
+        // Check if we've already verified the schedule recently
+        if (get_transient('custom_cookie_ocd_schedule_check')) {
+            return;
+        }
+
         // Check if enabled in settings
         $settings = get_option('custom_cookie_settings', array());
         if (empty($settings['enable_ocd']) || '1' !== $settings['enable_ocd']) {
@@ -80,6 +85,10 @@ class OpenCookieDatabase
         if (! wp_next_scheduled('custom_cookie_ocd_update')) {
             wp_schedule_event(time(), 'monthly', 'custom_cookie_ocd_update');
         }
+
+        // Set transient to prevent frequent schedule checks
+        // Check again in 12 hours
+        set_transient('custom_cookie_ocd_schedule_check', true, 12 * HOUR_IN_SECONDS);
     }
 
     /**

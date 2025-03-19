@@ -965,26 +965,7 @@ class ConsentManager {
     this.applyConsent();
 
     // Dispatch consent updated event
-    const detail = {};
-    Object.keys(categories).forEach((category) => {
-      detail[category] = categories[category];
-    });
-
-    const consentEvent = new CustomEvent("consentUpdated", {
-      detail: detail,
-    });
-    window.dispatchEvent(consentEvent);
-
-    // Check if we're on a page with the consent data shortcode and refresh if needed
-    if (document.querySelector(".cookie-consent-data-display")) {
-      // Add a small delay to ensure all operations complete
-      setTimeout(() => {
-        const refreshButton = document.getElementById("cookie-consent-refresh");
-        if (refreshButton) {
-          refreshButton.click();
-        }
-      }, 300);
-    }
+    this.dispatchConsentUpdate(consentData);
   }
 
   /**
@@ -1004,33 +985,60 @@ class ConsentManager {
       consentData: consentData,
     });
 
-    // Create form data for regular consent storage
-    const formData = new FormData();
-    formData.append("action", "save_cookie_consent");
-    formData.append(
-      "nonce",
-      document.querySelector('meta[name="cookie_consent_nonce"]')?.content || ""
-    );
-    formData.append("consent_data", JSON.stringify(consentData));
+    // Send consent data to server
+    async function sendConsentToServer(consentData) {
+      try {
+        const formData = new FormData();
+        formData.append("action", "save_cookie_consent");
+        formData.append("consent_data", JSON.stringify(consentData));
+        formData.append("nonce", window.cookieConsentSettings?.nonce || "");
 
-    // Send the data for user-specific storage
-    fetch(window.cookieConsentSettings.ajaxUrl, {
-      method: "POST",
-      credentials: "same-origin",
-      body: formData,
-    })
-      .then((response) => {
+        const response = await fetch(
+          window.cookieConsentSettings?.ajaxurl || "/wp-admin/admin-ajax.php",
+          {
+            method: "POST",
+            body: formData,
+            credentials: "same-origin",
+          }
+        );
+
         if (!response.ok) {
-          throw new Error("Network response was not ok");
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
-      })
-      .then((data) => {
-        this.debugLog("Consent storage response:", data);
-      })
-      .catch((error) => {
+
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.data || "Failed to save consent data");
+        }
+
+        return data;
+      } catch (error) {
         console.error("Error saving consent data:", error);
-      });
+        // Don't throw the error, just log it
+        return { success: false, error: error.message };
+      }
+    }
+
+    // Save consent data
+    async function saveConsent(consentData) {
+      try {
+        // Save to localStorage first
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(consentData));
+
+        // Then try to save to server
+        const result = await sendConsentToServer(consentData);
+
+        if (!result.success) {
+          console.warn("Failed to save consent to server:", result.error);
+          // Continue with local storage only
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error saving consent:", error);
+        return false;
+      }
+    }
 
     // Create separate form data for consent logging
     const logFormData = new FormData();
@@ -1389,6 +1397,54 @@ class ConsentManager {
       } else {
         console.log(`[Cookie Consent] ${message}`);
       }
+    }
+  }
+
+  /**
+   * Dispatches a consent update event with the consent data
+   * @param {Object} consentData - The consent data to include
+   */
+  dispatchConsentUpdate(consentData) {
+    // Create an object with just the category values for the event detail
+    const categories = {};
+    if (consentData && consentData.categories) {
+      Object.keys(consentData.categories).forEach((category) => {
+        categories[category] = !!consentData.categories[category]; // Convert to boolean
+      });
+    }
+
+    // Create and dispatch the event
+    const event = new CustomEvent("consentUpdated", {
+      detail: categories,
+    });
+
+    if (window.cookieConsentSettings?.debug) {
+      console.log("Dispatching consent update event:", categories);
+    }
+
+    window.dispatchEvent(event);
+
+    // Also trigger any refresh logic for consent data displays
+    this.refreshConsentDataDisplays();
+  }
+
+  /**
+   * Refreshes any consent data displays on the page
+   */
+  refreshConsentDataDisplays() {
+    // Find refresh buttons in consent data displays
+    const refreshButtons = document.querySelectorAll("#cookie-consent-refresh");
+    if (refreshButtons.length > 0) {
+      // Click each refresh button with a small delay
+      setTimeout(() => {
+        refreshButtons.forEach((button) => {
+          try {
+            button.click();
+          } catch (e) {
+            // Ignore errors with button clicking
+          }
+        });
+      }, 300);
     }
   }
 }

@@ -45,7 +45,7 @@ class AdminInterface
             __('Cookie Consent', 'custom-cookie-consent'),
             'manage_options',
             'custom-cookie-consent',
-            [$this, 'render_settings_page'],
+            [$this, 'render_main_page'],
             'dashicons-privacy'
         );
 
