@@ -1,4 +1,8 @@
 # Development and testing files
+/bin/
+/e2e-server/
+/playwright-report/
+/test-results/
 /tests/
 /tools/
 /.github/
@@ -10,6 +14,24 @@
 /docs/development/
 /docs/testing/
 /docs/workflow/
+
+# Configuration files
+.pa11yci.json
+phpcs.xml
+phpunit.xml
+phpunit.xml.dist
+playwright.config.js
+.phpunit.result.cache
+cypress.config.js
+
+# Build and dependency files
+composer.json
+composer.lock
+composer.phar
+package.json
+package-lock.json
+yarn.lock
+wp-cli.phar
 
 # Environment files
 .env
@@ -24,6 +46,7 @@
 *.cache
 .DS_Store
 Thumbs.db
+commit-message.txt
 
 # Allow only plugin-specific files
 !/*.php
@@ -38,6 +61,7 @@ Thumbs.db
 !/css/
 !/js/
 !/assets/
+!/screenshots/
 
 # Operating System files
 ._*
@@ -51,9 +75,6 @@ Desktop.ini
 *.sublime-project
 *.sublime-workspace
 *.code-workspace
-
-# Composer
-composer.lock
 
 # WordPress local development
 /wp-config-local.php
