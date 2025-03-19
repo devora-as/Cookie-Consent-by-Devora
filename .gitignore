@@ -108,4 +108,16 @@ languages/debug.log
 *.zip
 
 # Old plugin update checker (replaced by GitHub Updater)
-includes/plugin-update-checker/ 
+includes/plugin-update-checker/
+
+# New additions from the code block
+/bin/
+/e2e-server/
+/playwright-report/
+/test-results/
+.DS_Store
+phpunit.xml
+npm-debug.log
+local-config.php
+wp-config.php
+*.map 
