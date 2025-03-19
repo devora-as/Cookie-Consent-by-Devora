@@ -29,6 +29,8 @@
 
 namespace CustomCookieConsent;
 
+use \Exception;
+
 // If this file is called directly, abort.
 if (! defined('WPINC')) {
     die;
@@ -50,11 +52,12 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-cookie-categories.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-cookie-scanner.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-admin-interface.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-integrations.php';
-require_once plugin_dir_path(__FILE__) . 'includes/class-bannergenerator.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-banner-generator.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-wp-consent-wrapper.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-github-updater.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-consent-logger.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-open-cookie-database.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-matomo-integration.php';
 
 /**
  * Custom Cookie Consent Plugin
@@ -110,6 +113,11 @@ class CookieConsent
     private $open_cookie_db;
 
     /**
+     * @var MatomoIntegration
+     */
+    private $matomo_integration;
+
+    /**
      * @var array
      */
     private $settings;
@@ -132,43 +140,28 @@ class CookieConsent
      */
     private function __construct()
     {
-        // Initialize classes
-        $this->cookie_scanner   = new CookieScanner();
-        $this->admin_interface  = AdminInterface::get_instance(); // Use singleton
-        $this->integrations     = new Integrations();
+        // Load dependencies
+        require_once plugin_dir_path(__FILE__) . 'includes/class-cookie-scanner.php';
+        require_once plugin_dir_path(__FILE__) . 'includes/class-admin-interface.php';
+        require_once plugin_dir_path(__FILE__) . 'includes/class-integrations.php';
+        require_once plugin_dir_path(__FILE__) . 'includes/class-banner-generator.php';
+        require_once plugin_dir_path(__FILE__) . 'includes/class-open-cookie-database.php';
+        require_once plugin_dir_path(__FILE__) . 'includes/class-wp-consent-wrapper.php';
+        require_once plugin_dir_path(__FILE__) . 'includes/class-matomo-integration.php';
+
+        // Initialize components
+        $this->cookie_scanner = new CookieScanner();
+        $this->admin_interface = AdminInterface::get_instance();
+        $this->integrations = new Integrations();
         $this->banner_generator = new BannerGenerator();
-
-        // Initialize Open Cookie Database integration
         $this->open_cookie_db = new OpenCookieDatabase();
+        $this->matomo_integration = new MatomoIntegration();
 
-        // Initialize GitHub updater
-        if (class_exists('\\CustomCookieConsent\\GitHubUpdater')) {
-            GitHubUpdater::init(__FILE__);
-        }
+        // Load settings
+        $this->settings = get_option('custom_cookie_settings', []);
 
-        // Get saved settings
-        $this->settings = get_option('custom_cookie_settings', array());
-
-        // Debug log the integration settings
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log(
-                '__construct() - Initializing plugin with integration settings:',
-                array(
-                    'wp_consent_api'      => isset($this->settings['wp_consent_api']) ? $this->settings['wp_consent_api'] : false,
-                    'sitekit_integration' => isset($this->settings['sitekit_integration']) ? $this->settings['sitekit_integration'] : false,
-                    'hubspot_integration' => isset($this->settings['hubspot_integration']) ? $this->settings['hubspot_integration'] : false,
-                )
-            );
-        }
-
-        // Register activation hook
-        register_activation_hook(__FILE__, array($this, 'activate'));
-
-        // Check if database needs updating
-        $this->maybe_update_db_schema();
-
-        // Add action to init method to register all hooks
-        add_action('init', array($this, 'init'));
+        // Initialize the plugin
+        $this->init();
     }
 
     /**
@@ -194,6 +187,7 @@ class CookieConsent
         // Register shortcodes
         add_shortcode('cookie_settings', array($this, 'cookie_settings_shortcode'));
         add_shortcode('consent_data', array($this, 'show_consent_data_shortcode'));
+        add_shortcode('show_my_consent_data', array($this, 'show_consent_data_shortcode'));
 
         // Register AJAX handlers
         add_action('wp_ajax_custom_cookie_save_settings', array($this, 'ajax_save_settings'));
@@ -1118,136 +1112,143 @@ class CookieConsent
      */
     public function get_user_consent_data(): array
     {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('Starting consent data collection');
-        }
-
-        // Initialize with default values (only necessary cookies are permitted by default)
-        $consent_data = array(
-            'cookies_present' => array(),
-            'consent_status'  => array(
-                'necessary'  => true,
-                'analytics'  => false,
+        // Default data to return
+        $consent_data = [
+            'consent_status' => [
+                'necessary' => true,
+                'analytics' => false,
                 'functional' => false,
-                'marketing'  => false,
-            ),
-            'cookies_blocked' => array(),
-        );
+                'marketing' => false
+            ],
+            'cookies_present' => []
+        ];
 
-        // Get stored consent from cookie or localStorage (this is the source of truth)
-        $stored_consent = $this->get_stored_consent();
+        try {
+            // Get stored consent
+            $stored_consent = $this->get_stored_consent();
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('Stored consent data:', $stored_consent);
-        }
+            if ($stored_consent && !empty($stored_consent['categories'])) {
+                $consent_data['consent_status'] = $stored_consent['categories'];
 
-        // If we have stored consent from the client, use that as the primary source
-        if ($stored_consent && isset($stored_consent['categories'])) {
-            foreach ($stored_consent['categories'] as $category => $status) {
-                if (isset($consent_data['consent_status'][$category])) {
-                    $consent_data['consent_status'][$category] = filter_var($status, FILTER_VALIDATE_BOOLEAN);
+                // Always ensure necessary cookies are true
+                $consent_data['consent_status']['necessary'] = true;
+            }
 
-                    if (defined('WP_DEBUG') && WP_DEBUG) {
-                        $this->debug_log(
-                            'Updated consent status from client cookie:',
-                            array(
-                                'category' => $category,
-                                'status'   => $consent_data['consent_status'][$category],
-                            )
-                        );
+            // Get all browser cookies
+            $all_cookies = $this->get_all_browser_cookies();
+
+            // Keep track of all cookies grouped by category
+            $cookies_by_category = [];
+
+            // Get the current admin settings
+            $settings = get_option('custom_cookie_settings', []);
+
+            // Necessary cookies - default ones built into the plugin
+            $necessary_cookies = [
+                [
+                    'name' => 'devora_cookie_consent',
+                    'category' => 'necessary',
+                    'description' => __('Cookie for storing your cookie preferences', 'custom-cookie-consent'),
+                    'expiry' => '1 year'
+                ]
+            ];
+
+            // Add necessary cookies
+            if (isset($settings['necessary_cookies'])) {
+                $registered_cookies = array_filter(explode("\n", $settings['necessary_cookies']));
+                foreach ($registered_cookies as $cookie_name) {
+                    $cookie_name = trim($cookie_name);
+                    if (!empty($cookie_name)) {
+                        $necessary_cookies[] = [
+                            'name' => $cookie_name,
+                            'category' => 'necessary',
+                            'description' => isset($settings['necessary_description']) ? $settings['necessary_description'] : __('Required for the website to function', 'custom-cookie-consent'),
+                            'expiry' => '1 year'
+                        ];
                     }
                 }
             }
-        }
-        // For logged-in users, also check user meta as a backup
-        elseif (is_user_logged_in()) {
-            $user_consent = get_user_meta(get_current_user_id(), 'custom_cookie_consent_data', true);
 
-            if ($user_consent && isset($user_consent['categories'])) {
-                foreach ($user_consent['categories'] as $category => $status) {
-                    if (isset($consent_data['consent_status'][$category])) {
-                        $consent_data['consent_status'][$category] = filter_var($status, FILTER_VALIDATE_BOOLEAN);
+            // Add necessary cookies to list
+            foreach ($necessary_cookies as $cookie) {
+                $cookies_by_category['necessary'][] = $cookie;
+            }
 
-                        if (defined('WP_DEBUG') && WP_DEBUG) {
-                            $this->debug_log(
-                                'Updated consent status from user meta:',
-                                array(
-                                    'category' => $category,
-                                    'status'   => $consent_data['consent_status'][$category],
-                                )
-                            );
-                        }
+            // Analytics cookies
+            if (isset($settings['analytics_cookies'])) {
+                $analytics_cookies = array_filter(explode("\n", $settings['analytics_cookies']));
+                foreach ($analytics_cookies as $cookie_name) {
+                    $cookie_name = trim($cookie_name);
+                    if (!empty($cookie_name)) {
+                        $cookies_by_category['analytics'][] = [
+                            'name' => $cookie_name,
+                            'category' => 'analytics',
+                            'description' => isset($settings['analytics_description']) ? $settings['analytics_description'] : __('Used for measuring website usage', 'custom-cookie-consent'),
+                            'expiry' => $this->get_cookie_expiry($cookie_name)
+                        ];
                     }
                 }
             }
-        }
 
-        // Also check WP Consent API if enabled and available
-        if (! empty($this->settings['wp_consent_api']) && WPConsentWrapper::is_consent_api_active()) {
-            // Check consent status for each category from the WP Consent API
-            $categories = array('necessary', 'analytics', 'functional', 'marketing');
-
-            foreach ($categories as $category) {
-                $has_consent                                 = WPConsentWrapper::has_consent($category);
-                $consent_data['consent_status'][$category] = $has_consent;
-
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    $this->debug_log("WP Consent API status for $category:", $has_consent);
-                }
-            }
-        }
-
-        // Get all cookie data and categorize them
-        $all_cookies      = $this->get_all_browser_cookies();
-        $detected_cookies = get_option('custom_cookie_detected', array());
-
-        // Add all cookies to cookies_present
-        foreach ($all_cookies as $name => $value) {
-            // Check if this cookie exists in detected cookies
-            $category    = 'necessary'; // Default category if not found
-            $description = '';
-            $expiry      = '';
-            $source      = '';
-
-            // Look for this cookie in the detected cookies
-            foreach ($detected_cookies as $detected) {
-                if ($detected['name'] === $name && $detected['status'] === 'categorized') {
-                    $category    = $detected['category'];
-                    $description = $detected['description'] ?? '';
-                    $expiry      = isset($detected['expires']) ? $detected['expires'] : '';
-                    $source      = isset($detected['source']) ? $detected['source'] : '';
-                    break;
+            // Functional cookies
+            if (isset($settings['functional_cookies'])) {
+                $functional_cookies = array_filter(explode("\n", $settings['functional_cookies']));
+                foreach ($functional_cookies as $cookie_name) {
+                    $cookie_name = trim($cookie_name);
+                    if (!empty($cookie_name)) {
+                        $cookies_by_category['functional'][] = [
+                            'name' => $cookie_name,
+                            'category' => 'functional',
+                            'description' => isset($settings['functional_description']) ? $settings['functional_description'] : __('Used for enhanced functionality', 'custom-cookie-consent'),
+                            'expiry' => $this->get_cookie_expiry($cookie_name)
+                        ];
+                    }
                 }
             }
 
-            // Add to cookies_present array
-            $consent_data['cookies_present'][] = array(
-                'name'        => $name,
-                'category'    => $category,
-                'description' => $description,
-                'expiry'      => $expiry,
-                'source'      => $source,
-            );
-
-            // If this cookie is in a non-necessary category and that category is not consented to,
-            // add it to the cookies_blocked array
-            if ($category !== 'necessary' && ! $consent_data['consent_status'][$category]) {
-                $consent_data['cookies_blocked'][] = $name;
+            // Marketing cookies
+            if (isset($settings['marketing_cookies'])) {
+                $marketing_cookies = array_filter(explode("\n", $settings['marketing_cookies']));
+                foreach ($marketing_cookies as $cookie_name) {
+                    $cookie_name = trim($cookie_name);
+                    if (!empty($cookie_name)) {
+                        $cookies_by_category['marketing'][] = [
+                            'name' => $cookie_name,
+                            'category' => 'marketing',
+                            'description' => isset($settings['marketing_description']) ? $settings['marketing_description'] : __('Used for personalized content and ads', 'custom-cookie-consent'),
+                            'expiry' => $this->get_cookie_expiry($cookie_name)
+                        ];
+                    }
+                }
             }
-        }
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log(
-                'Final consent data:',
-                array(
-                    'consent_status' => $consent_data['consent_status'],
-                    'cookies_count'  => count($consent_data['cookies_present']),
-                    'blocked_count'  => count($consent_data['cookies_blocked']),
-                )
-            );
-        }
+            // Combine all present cookies from all categories into a single array
+            $cookies_present = [];
 
-        return $consent_data;
+            foreach ($cookies_by_category as $category => $cookies) {
+                // Only include cookies from categories the user has consented to
+                if (
+                    $category === 'necessary' ||
+                    (isset($consent_data['consent_status'][$category]) && $consent_data['consent_status'][$category])
+                ) {
+                    foreach ($cookies as $cookie) {
+                        $cookies_present[] = $cookie;
+                    }
+                }
+            }
+
+            $consent_data['cookies_present'] = $cookies_present;
+
+            // Detect if we have any Google Analytics cookies
+            $consent_data['has_ga'] = $this->has_ga_cookies();
+
+            return $consent_data;
+        } catch (Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Error getting user consent data: ' . $e->getMessage());
+            }
+            return $consent_data; // Return default data if error
+        }
     }
 
     /**
@@ -1541,7 +1542,14 @@ class CookieConsent
      */
     public function show_consent_data_shortcode(): string
     {
+        // Create a timestamp to ensure scripts/styles have unique cache busters
+        $timestamp = time();
+
+        // Get settings
         $settings = get_option('custom_cookie_settings', array());
+
+        // Create a nonce that will work properly with our AJAX endpoint
+        $nonce = wp_create_nonce('cookie_management');
 
         // Create a placeholder that will be populated via AJAX
         $output = '<div class="cookie-consent-data-display" style="max-width: 800px; margin: 2rem auto; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
@@ -1569,47 +1577,126 @@ class CookieConsent
             }
         </style>';
 
-        // Add JavaScript to fetch and display consent data
+        // Settings for JavaScript templating
+        $necessary_title = esc_js($settings['necessary_title'] ?? 'Nødvendige');
+        $analytics_title = esc_js($settings['analytics_title'] ?? 'Analyse');
+        $functional_title = esc_js($settings['functional_title'] ?? 'Funksjonell');
+        $marketing_title = esc_js($settings['marketing_title'] ?? 'Markedsføring');
+        $consent_last_updated = esc_js($settings['consent_last_updated'] ?? 'Sist oppdatert:');
+        $consent_choices_heading = esc_js($settings['consent_choices_heading'] ?? 'Dine samtykkevalg');
+        $consent_status_accepted = esc_js($settings['consent_status_accepted'] ?? 'Godtatt');
+        $consent_status_declined = esc_js($settings['consent_status_declined'] ?? 'Avslått');
+        $active_cookies_heading = esc_js($settings['active_cookies_heading'] ?? 'Aktive informasjonskapsler:');
+        $no_cookies_message = esc_js($settings['no_cookies_message'] ?? 'Ingen informasjonskapsler funnet.');
+        $cookie_purpose_label = esc_js($settings['cookie_purpose_label'] ?? 'Formål:');
+        $cookie_expiry_label = esc_js($settings['cookie_expiry_label'] ?? 'Utløper:');
+        $error_message = esc_js(__('Error loading consent data. Please try again.', 'custom-cookie-consent'));
+
+        // Add JavaScript to fetch and display consent data - rewritten to avoid template literal issues
         $output .= '<script>
             (function() {
-                // Function to fetch consent data
-                function fetchConsentData() {
+                // Configuration
+                const config = {
+                    ajaxUrl: "' . esc_js(admin_url('admin-ajax.php')) . '",
+                    nonce: "' . esc_js($nonce) . '",
+                    action: "custom_cookie_get_consent",
+                    debug: ' . (defined('WP_DEBUG') && WP_DEBUG ? 'true' : 'false') . ',
+                    retryDelay: 1000,
+                    maxRetries: 3,
+                    strings: {
+                        necessary: "' . $necessary_title . '",
+                        analytics: "' . $analytics_title . '",
+                        functional: "' . $functional_title . '",
+                        marketing: "' . $marketing_title . '",
+                        lastUpdated: "' . $consent_last_updated . '",
+                        choicesHeading: "' . $consent_choices_heading . '",
+                        accepted: "' . $consent_status_accepted . '",
+                        declined: "' . $consent_status_declined . '",
+                        activeCookies: "' . $active_cookies_heading . '",
+                        noCookies: "' . $no_cookies_message . '",
+                        purpose: "' . $cookie_purpose_label . '",
+                        expiry: "' . $cookie_expiry_label . '",
+                        error: "' . $error_message . '"
+                    }
+                };
+                
+                // Debug logging - only logs to console when debug is enabled
+                function debug(message, data) {
+                    if (!config.debug) return;
+                    console.log("[Consent Data]", message, data || "");
+                }
+                
+                // Fetch consent data with retries
+                function fetchConsentData(retryCount = 0) {
                     const container = document.getElementById("cookie-consent-data-container");
                     const loading = document.getElementById("cookie-consent-data-loading");
+                    
+                    if (!container || !loading) {
+                        debug("Required DOM elements not found");
+                        return;
+                    }
                     
                     // Show loading
                     loading.style.display = "block";
                     container.style.display = "none";
                     
+                    debug("Fetching consent data", { 
+                        attempt: retryCount + 1,
+                        url: config.ajaxUrl,
+                        nonce: config.nonce ? "Valid" : "Missing"
+                    });
+                    
                     // Create form data
                     const formData = new FormData();
-                    formData.append("action", "get_cookie_consent_data");
-                    formData.append("nonce", document.querySelector(\'meta[name="cookie_consent_nonce"]\')?.content || "");
+                    formData.append("action", config.action);
+                    formData.append("nonce", config.nonce);
                     
-                    // Fetch data
-                    fetch("' . admin_url('admin-ajax.php') . '", {
+                    // Fetch data with proper error handling
+                    fetch(config.ajaxUrl, {
                         method: "POST",
                         credentials: "same-origin",
                         body: formData
                     })
-                    .then(response => response.json())
                     .then(response => {
+                        debug("Response status", response.status);
+                        
+                        if (!response.ok) {
+                            debug("Response not OK", {
+                                status: response.status,
+                                statusText: response.statusText
+                            });
+                            throw new Error("Network error: " + response.status + " " + response.statusText);
+                        }
+                        return response.json();
+                    })
+                    .then(response => {
+                        debug("Response received", response);
+                        
                         if (response.success && response.data) {
-                            renderConsentData(response.data.data);
+                            renderConsentData(response.data);
                             loading.style.display = "none";
                             container.style.display = "block";
                         } else {
-                            container.innerHTML = "<p style=\"color: #666; text-align: center;\">' . esc_js(__('Error loading consent data.', 'custom-cookie-consent')) . '</p>";
-                            loading.style.display = "none";
-                            container.style.display = "block";
+                            debug("Invalid response format", response);
+                            throw new Error(response.data?.message || "Invalid response format");
                         }
                     })
                     .catch(error => {
-                        // Only log in debug mode
-                        if (window.cookieConsentSettings?.debug) {
-                            console.error("Error fetching consent data:", error);
+                        debug("Error fetching consent data", error.message);
+                        
+                        if (retryCount < config.maxRetries) {
+                            debug("Retrying (" + (retryCount + 1) + "/" + config.maxRetries + ")...");
+                            setTimeout(() => fetchConsentData(retryCount + 1), config.retryDelay);
+                            return;
                         }
-                        container.innerHTML = "<p style=\"color: #666; text-align: center;\">' . esc_js(__('Error loading consent data.', 'custom-cookie-consent')) . '</p>";
+                        
+                        container.innerHTML = 
+                            "<p style=\"color: #666; text-align: center;\">" + 
+                            config.strings.error + 
+                            "</p>" +
+                            "<p style=\"color: #999; text-align: center; font-size: 0.9em;\">" +
+                            error.message +
+                            "</p>";
                         loading.style.display = "none";
                         container.style.display = "block";
                     });
@@ -1618,51 +1705,61 @@ class CookieConsent
                 // Function to render consent data
                 function renderConsentData(data) {
                     const container = document.getElementById("cookie-consent-data-container");
+                    if (!container) {
+                        debug("Container not found");
+                        return;
+                    }
+                    
+                    debug("Rendering consent data", data);
+                    
                     let html = "";
                     
                     // Add last updated time if available
                     if (data.timestamp) {
-                        const date = new Date(data.timestamp);
-                        html += `<p style="color: #666; font-size: 0.9em;">' . esc_js($settings['consent_last_updated'] ?? 'Sist oppdatert:') . ' ${date.toLocaleString()}</p>`;
+                        const date = new Date(data.timestamp * 1000);
+                        html += "<p style=\"color: #666; font-size: 0.9em;\">" + config.strings.lastUpdated + " " + date.toLocaleString() + "</p>";
                     }
                     
                     // Show consent status
-                    html += `<h3 style="margin: 0 0 1rem; color: #333;">' . esc_js($settings['consent_choices_heading'] ?? 'Dine samtykkevalg') . '</h3>`;
-                    html += `<div style="margin-bottom: 2rem;">`;
+                    html += "<h3 style=\"margin: 0 0 1rem; color: #333;\">" + config.strings.choicesHeading + "</h3>";
+                    html += "<div style=\"margin-bottom: 2rem;\">";
                     
                     // Display consent status for each category
                     if (data.consent_status) {
-                        for (const [category, status] of Object.entries(data.consent_status)) {
-                            // Get category title
-                            let categoryDisplay = category;
-                            if (category === "necessary") {
-                                categoryDisplay = "' . esc_js($settings['necessary_title'] ?? 'Nødvendige') . '";
-                            } else if (category === "analytics") {
-                                categoryDisplay = "' . esc_js($settings['analytics_title'] ?? 'Analyse') . '";
-                            } else if (category === "functional") {
-                                categoryDisplay = "' . esc_js($settings['functional_title'] ?? 'Funksjonell') . '";
-                            } else if (category === "marketing") {
-                                categoryDisplay = "' . esc_js($settings['marketing_title'] ?? 'Markedsføring') . '";
+                        for (const category in data.consent_status) {
+                            if (Object.prototype.hasOwnProperty.call(data.consent_status, category)) {
+                                const status = data.consent_status[category];
+                                
+                                // Get category title
+                                let categoryDisplay = category;
+                                if (category === "necessary") {
+                                    categoryDisplay = config.strings.necessary;
+                                } else if (category === "analytics") {
+                                    categoryDisplay = config.strings.analytics;
+                                } else if (category === "functional") {
+                                    categoryDisplay = config.strings.functional;
+                                } else if (category === "marketing") {
+                                    categoryDisplay = config.strings.marketing;
+                                }
+                                
+                                const statusColor = status ? "#4C4CFF" : "#666";
+                                const statusText = status 
+                                    ? config.strings.accepted
+                                    : config.strings.declined;
+                                
+                                html += 
+                                    "<div style=\"display: flex; align-items: center; margin-bottom: 0.5rem;\">" +
+                                    "<span style=\"flex: 1; font-weight: 500;\">" + categoryDisplay + ":</span>" +
+                                    "<span style=\"color: " + statusColor + "; font-weight: 500;\">" + statusText + "</span>" +
+                                    "</div>";
                             }
-                            
-                            const statusColor = status ? "#4C4CFF" : "#666";
-                            const statusText = status 
-                                ? "' . esc_js($settings['consent_status_accepted'] ?? 'Godtatt') . '"
-                                : "' . esc_js($settings['consent_status_declined'] ?? 'Avslått') . '";
-                            
-                            html += `
-                                <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                                    <span style="flex: 1; font-weight: 500;">${categoryDisplay}:</span>
-                                    <span style="color: ${statusColor}; font-weight: 500;">${statusText}</span>
-                                </div>
-                            `;
                         }
                     }
-                    html += `</div>`;
+                    html += "</div>";
                     
                     // Show active cookies
                     if (data.cookies_present && data.cookies_present.length > 0) {
-                        html += `<h4 style="margin: 1.5rem 0 1rem; color: #333;">' . esc_js($settings['active_cookies_heading'] ?? 'Aktive informasjonskapsler:') . '</h4>`;
+                        html += "<h4 style=\"margin: 1.5rem 0 1rem; color: #333;\">" + config.strings.activeCookies + "</h4>";
                         
                         // Group cookies by category
                         const cookiesByCategory = {};
@@ -1674,61 +1771,67 @@ class CookieConsent
                         }
                         
                         // Display cookies by category
-                        for (const [category, cookies] of Object.entries(cookiesByCategory)) {
-                            if (cookies.length === 0) continue;
-                            
-                            // Get category title
-                            let categoryDisplay = category;
-                            if (category === "necessary") {
-                                categoryDisplay = "' . esc_js($settings['necessary_title'] ?? 'Nødvendige') . '";
-                            } else if (category === "analytics") {
-                                categoryDisplay = "' . esc_js($settings['analytics_title'] ?? 'Analyse') . '";
-                            } else if (category === "functional") {
-                                categoryDisplay = "' . esc_js($settings['functional_title'] ?? 'Funksjonell') . '";
-                            } else if (category === "marketing") {
-                                categoryDisplay = "' . esc_js($settings['marketing_title'] ?? 'Markedsføring') . '";
+                        for (const category in cookiesByCategory) {
+                            if (Object.prototype.hasOwnProperty.call(cookiesByCategory, category)) {
+                                const cookies = cookiesByCategory[category];
+                                if (cookies.length === 0) continue;
+                                
+                                // Get category title
+                                let categoryDisplay = category;
+                                if (category === "necessary") {
+                                    categoryDisplay = config.strings.necessary;
+                                } else if (category === "analytics") {
+                                    categoryDisplay = config.strings.analytics;
+                                } else if (category === "functional") {
+                                    categoryDisplay = config.strings.functional;
+                                } else if (category === "marketing") {
+                                    categoryDisplay = config.strings.marketing;
+                                }
+                                
+                                html += 
+                                    "<div style=\"margin-bottom: 1.5rem;\">" +
+                                    "<h5 style=\"margin: 1rem 0 0.5rem; color: #555;\">" + categoryDisplay + "</h5>" +
+                                    "<div style=\"border-left: 3px solid #4C4CFF; padding-left: 1rem;\">";
+                                
+                                for (const cookie of cookies) {
+                                    html += 
+                                        "<div style=\"margin-bottom: 1rem; padding: 0.75rem; background: #fff; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);\">" +
+                                        "<p style=\"margin: 0 0 0.5rem; font-weight: 500;\">" + (cookie.name || "Unknown") + "</p>" +
+                                        "<p style=\"margin: 0 0 0.25rem; font-size: 0.9em;\"><strong>" + config.strings.purpose + "</strong> " + (cookie.description || "Ikke spesifisert") + "</p>" +
+                                        "<p style=\"margin: 0; font-size: 0.9em;\"><strong>" + config.strings.expiry + "</strong> " + (cookie.expiry || "Ikke spesifisert") + "</p>" +
+                                        "</div>";
+                                }
+                                
+                                html += "</div></div>";
                             }
-                            
-                            html += `
-                                <div style="margin-bottom: 1.5rem;">
-                                    <h5 style="margin: 1rem 0 0.5rem; color: #555;">${categoryDisplay}</h5>
-                                    <div style="border-left: 3px solid #4C4CFF; padding-left: 1rem;">
-                            `;
-                            
-                            for (const cookie of cookies) {
-                                html += `
-                                    <div style="margin-bottom: 1rem; padding: 0.75rem; background: #fff; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                        <p style="margin: 0 0 0.5rem; font-weight: 500;">${cookie.name}</p>
-                                        <p style="margin: 0 0 0.25rem; font-size: 0.9em;"><strong>' . esc_js($settings['cookie_purpose_label'] ?? 'Formål:') . '</strong> ${cookie.description || "Ikke spesifisert"}</p>
-                                        <p style="margin: 0; font-size: 0.9em;"><strong>' . esc_js($settings['cookie_expiry_label'] ?? 'Utløper:') . '</strong> ${cookie.expiry || "Ikke spesifisert"}</p>
-                                    </div>
-                                `;
-                            }
-                            
-                            html += `</div></div>`;
                         }
                     } else {
-                        html += `<p style="margin: 1.5rem 0; color: #666;">' . esc_js($settings['no_cookies_message'] ?? 'Ingen informasjonskapsler funnet.') . '</p>`;
+                        html += "<p style=\"margin: 1.5rem 0; color: #666;\">" + config.strings.noCookies + "</p>";
                     }
                     
                     container.innerHTML = html;
                 }
                 
                 // Add event listener to refresh button
-                document.getElementById("cookie-consent-refresh").addEventListener("click", fetchConsentData);
+                const refreshButton = document.getElementById("cookie-consent-refresh");
+                if (refreshButton) {
+                    refreshButton.addEventListener("click", function() {
+                        fetchConsentData();
+                    });
+                }
                 
                 // Add event listener for consent updated events
                 window.addEventListener("consentUpdated", function() {
-                    setTimeout(fetchConsentData, 500);
+                    debug("Consent updated event received");
+                    setTimeout(function() {
+                        fetchConsentData();
+                    }, 500);
                 });
                 
-                // Initial fetch
-                document.addEventListener("DOMContentLoaded", fetchConsentData);
-                
-                // Fetch now if the page is already loaded
-                if (document.readyState === "complete" || document.readyState === "interactive") {
+                // Initial fetch - use a small delay to ensure DOM is ready
+                setTimeout(function() {
                     fetchConsentData();
-                }
+                }, 100);
             })();
         </script>';
 
@@ -2061,92 +2164,89 @@ class CookieConsent
      */
     public function ajax_save_consent(): void
     {
-        // Verify nonce if available
-        $nonce_verified = false;
+        try {
+            // Get and validate the consent data
+            $raw_consent_data = isset($_POST['consent_data']) ? sanitize_text_field(wp_unslash($_POST['consent_data'])) : '';
+            $consent_data = json_decode($raw_consent_data, true);
 
-        if (isset($_POST['nonce'])) {
-            $nonce          = sanitize_text_field($_POST['nonce']);
-            $nonce_verified = wp_verify_nonce($nonce, 'cookie_management');
-        }
-
-        // Allow saving consent even without a nonce for frontend users
-        if (! $nonce_verified && defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Cookie Consent: Nonce verification failed for consent save, but proceeding anyway for frontend users');
-        }
-
-        // Get the consent data
-        $consent_data = null;
-        if (isset($_POST['consent_data'])) {
-            $consent_data = json_decode(wp_unslash($_POST['consent_data']), true);
-        }
-
-        if (! $consent_data || ! isset($consent_data['categories'])) {
-            wp_send_json_error(array('message' => __('Invalid consent data', 'custom-cookie-consent')));
-            return;
-        }
-
-        // Debug log the received consent data
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('Received consent data:', $consent_data);
-        }
-
-        // Save consent for logged-in users
-        if (is_user_logged_in()) {
-            update_user_meta(get_current_user_id(), 'custom_cookie_consent_data', $consent_data);
-
-            // Debug logged-in user consent storage
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                $this->debug_log('Saved consent data for user ID: ' . get_current_user_id());
+            if (!$consent_data || !isset($consent_data['categories'])) {
+                wp_send_json_error(['message' => __('Invalid consent data format', 'custom-cookie-consent')]);
+                return;
             }
-        }
 
-        // Log the consent data to the database
-        $consent_logger = new ConsentLogger();
-        $consent_logger->log_consent($consent_data, isset($_POST['source']) ? sanitize_text_field($_POST['source']) : 'banner');
-
-        // Update the WP Consent API if available
-        if (! empty($this->settings['wp_consent_api'])) {
-            // Register the consent for each category
+            // Validate categories structure
             foreach ($consent_data['categories'] as $category => $status) {
-                WPConsentWrapper::set_consent($category, (bool) $status);
+                if (!in_array($category, ['necessary', 'analytics', 'functional', 'marketing'])) {
+                    wp_send_json_error(['message' => __('Invalid category in consent data', 'custom-cookie-consent')]);
+                    return;
+                }
+                $consent_data['categories'][$category] = (bool)$status;
             }
 
-            // Debug WP Consent API integration
+            // Save consent for logged-in users
+            if (is_user_logged_in()) {
+                update_user_meta(get_current_user_id(), 'custom_cookie_consent_data', $consent_data);
+            }
+
+            // Log the consent data
+            $consent_logger = new ConsentLogger();
+            $source = isset($_POST['source']) ? sanitize_text_field($_POST['source']) : 'banner';
+            $consent_logger->log_consent($consent_data, $source);
+
+            // Update WP Consent API if enabled
+            if (!empty($this->settings['wp_consent_api'])) {
+                foreach ($consent_data['categories'] as $category => $status) {
+                    WPConsentWrapper::set_consent($category, (bool)$status);
+                }
+            }
+
+            // Update consent statistics
+            $this->update_consent_statistics($consent_data);
+
+            wp_send_json_success([
+                'message' => __('Consent preferences saved', 'custom-cookie-consent'),
+                'data' => $consent_data
+            ]);
+        } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                $this->debug_log('Updated WP Consent API with consent data');
+                error_log('Cookie Consent Error: ' . $e->getMessage());
             }
+            wp_send_json_error([
+                'message' => __('Error saving consent data', 'custom-cookie-consent'),
+                'error' => WP_DEBUG ? $e->getMessage() : null
+            ]);
         }
+    }
 
-        // Save the consent status to a site option for reference
-        // This helps track overall consent rates
-        $consent_stats = get_option(
-            'custom_cookie_consent_stats',
-            array(
-                'total'               => 0,
-                'analytics_accepted'  => 0,
-                'functional_accepted' => 0,
-                'last_updated'        => time(),
-            )
-        );
+    /**
+     * Updates consent statistics
+     *
+     * @param array $consent_data
+     * @return void
+     */
+    private function update_consent_statistics(array $consent_data): void
+    {
+        $consent_stats = get_option('custom_cookie_consent_stats', [
+            'total' => 0,
+            'analytics_accepted' => 0,
+            'functional_accepted' => 0,
+            'marketing_accepted' => 0,
+            'last_updated' => time()
+        ]);
 
         $consent_stats['total']++;
-        if (! empty($consent_data['categories']['analytics'])) {
+        if (!empty($consent_data['categories']['analytics'])) {
             $consent_stats['analytics_accepted']++;
         }
-        if (! empty($consent_data['categories']['functional'])) {
+        if (!empty($consent_data['categories']['functional'])) {
             $consent_stats['functional_accepted']++;
+        }
+        if (!empty($consent_data['categories']['marketing'])) {
+            $consent_stats['marketing_accepted']++;
         }
         $consent_stats['last_updated'] = time();
 
         update_option('custom_cookie_consent_stats', $consent_stats);
-
-        // Success response
-        wp_send_json_success(
-            array(
-                'message' => __('Consent preferences saved', 'custom-cookie-consent'),
-                'data'    => $consent_data,
-            )
-        );
     }
 
     /**
@@ -2169,39 +2269,53 @@ class CookieConsent
     }
 
     /**
-     * Handles AJAX request to fetch consent data.
-     *
-     * @return void
+     * AJAX handler for getting consent data
      */
     public function ajax_get_consent_data(): void
     {
-        // Verify nonce if available
-        $nonce_verified = false;
+        try {
+            // Verify nonce
+            if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
+                // Log the nonce verification failure
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Cookie Consent Error: Nonce verification failed');
+                    if (isset($_POST['nonce'])) {
+                        error_log('Cookie Consent Error: Invalid nonce: ' . sanitize_text_field(wp_unslash($_POST['nonce'])));
+                    } else {
+                        error_log('Cookie Consent Error: Nonce not provided');
+                    }
+                }
+                throw new Exception('Invalid security token. Please refresh the page and try again.');
+            }
 
-        if (isset($_POST['nonce'])) {
-            $nonce          = sanitize_text_field($_POST['nonce']);
-            $nonce_verified = wp_verify_nonce($nonce, 'cookie_management');
+            // Get consent data with error handling
+            $consent_data = $this->get_user_consent_data();
+
+            if (empty($consent_data)) {
+                throw new Exception('No consent data could be retrieved');
+            }
+
+            // Add timestamp for display
+            $consent_data['timestamp'] = time();
+
+            // Log successful retrieval
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Cookie Consent: Successfully retrieved consent data: ' . json_encode($consent_data));
+            }
+
+            // Send the response with success flag and data
+            wp_send_json_success($consent_data);
+            return;
+        } catch (Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Cookie Consent Error: ' . $e->getMessage());
+            }
+            wp_send_json_error([
+                'message' => __('Error retrieving consent data', 'custom-cookie-consent'),
+                'error' => WP_DEBUG ? $e->getMessage() : null
+            ]);
+            return;
         }
-
-        // Allow fetching consent data even without a nonce for frontend users
-        if (! $nonce_verified && defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Cookie Consent: Nonce verification failed for consent data fetch, but proceeding anyway for frontend users');
-        }
-
-        // Get consent data
-        $consent_data = $this->get_user_consent_data();
-
-        // Debug log the fetched consent data
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('Fetched consent data:', $consent_data);
-        }
-
-        // Success response
-        wp_send_json_success(
-            array(
-                'data' => $consent_data,
-            )
-        );
     }
 
     /**
