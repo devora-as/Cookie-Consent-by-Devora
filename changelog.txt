@@ -9,6 +9,7 @@ All notable changes to the Custom Cookie Consent plugin are documented in this f
 - Region-Based Consent Banners with specific rules for different regions
 - Auto-Detection of Cookie Data with improved pattern matching
 - Enhanced cookie scanning with automatic categorization
+- "Check for updates" link in plugins list for immediate update checking
 
 ### Updated
 - Improved Granular Consent Handling with better category management

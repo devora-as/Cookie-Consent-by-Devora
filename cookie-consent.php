@@ -2549,3 +2549,76 @@ function fix_banner_position()
 
 // Register the fix to run in the footer - using proper namespace
 add_action('wp_footer', __NAMESPACE__ . '\fix_banner_position', 100);
+
+// Add plugin row meta
+add_filter('plugin_row_meta', function ($links, $file) {
+    if (plugin_basename(__FILE__) !== $file) {
+        return $links;
+    }
+
+    $check_updates_link = sprintf(
+        '<a href="#" class="check-for-updates-link" data-plugin="%s">%s</a>',
+        esc_attr(plugin_basename(__FILE__)),
+        esc_html__('Check for updates', 'custom-cookie-consent')
+    );
+
+    $links[] = $check_updates_link;
+
+    return $links;
+}, 10, 2);
+
+// Add JavaScript to handle the update check
+add_action('admin_footer', function () {
+    if (!current_user_can('update_plugins')) {
+        return;
+    }
+?>
+    <script>
+        jQuery(document).ready(function($) {
+            $('.check-for-updates-link').on('click', function(e) {
+                e.preventDefault();
+                var $link = $(this);
+                var $row = $link.closest('tr');
+
+                $link.text('<?php echo esc_js(__('Checking...', 'custom-cookie-consent')); ?>');
+
+                $.ajax({
+                    url: ajaxurl,
+                    type: 'POST',
+                    data: {
+                        action: 'check_plugin_updates',
+                        _ajax_nonce: '<?php echo wp_create_nonce('check_plugin_updates'); ?>',
+                        plugin: $link.data('plugin')
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            window.location.reload();
+                        } else {
+                            $link.text('<?php echo esc_js(__('Check for updates', 'custom-cookie-consent')); ?>');
+                            alert('<?php echo esc_js(__('Failed to check for updates. Please try again.', 'custom-cookie-consent')); ?>');
+                        }
+                    },
+                    error: function() {
+                        $link.text('<?php echo esc_js(__('Check for updates', 'custom-cookie-consent')); ?>');
+                        alert('<?php echo esc_js(__('Failed to check for updates. Please try again.', 'custom-cookie-consent')); ?>');
+                    }
+                });
+            });
+        });
+    </script>
+<?php
+});
+
+// Add AJAX handler for update check
+add_action('wp_ajax_check_plugin_updates', function () {
+    if (!current_user_can('update_plugins')) {
+        wp_die(-1);
+    }
+
+    check_ajax_referer('check_plugin_updates');
+
+    delete_site_transient('update_plugins');
+    wp_update_plugins();
+
+    wp_send_json_success();
+});

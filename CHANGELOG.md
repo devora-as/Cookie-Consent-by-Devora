@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Region-Based Consent Banners with specific rules for different regions
 - Auto-Detection of Cookie Data with improved pattern matching
 - Enhanced cookie scanning with automatic categorization
+- "Check for updates" link in plugins list for immediate update checking
 
 ### Updated
 
