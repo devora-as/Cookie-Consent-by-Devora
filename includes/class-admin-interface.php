@@ -70,6 +70,15 @@ class AdminInterface
 
         add_submenu_page(
             'custom-cookie-consent',
+            __('Design', 'custom-cookie-consent'),
+            __('Design', 'custom-cookie-consent'),
+            'manage_options',
+            'custom-cookie-design',
+            [$this, 'render_design_page']
+        );
+
+        add_submenu_page(
+            'custom-cookie-consent',
             __('Text & Translations', 'custom-cookie-consent'),
             __('Text & Translations', 'custom-cookie-consent'),
             'manage_options',
@@ -232,6 +241,62 @@ class AdminInterface
         }
 
         include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/settings.php';
+    }
+
+    /**
+     * Render the design customization page
+     */
+    public function render_design_page()
+    {
+        // Get design settings with defaults
+        $default_design = [
+            // Banner appearance
+            'inherit_theme' => true, // Default to inheriting from theme
+            'banner_position' => 'bottom', // Default position
+            'banner_layout' => 'bar', // Default layout (bar, card, modal)
+
+            // Colors
+            'banner_background_color' => '#ffffff',
+            'banner_text_color' => '#333333',
+            'banner_border_color' => '#dddddd',
+
+            // Button colors
+            'accept_button_background' => '#4C4CFF',
+            'accept_button_text_color' => '#ffffff',
+            'accept_button_border_color' => '#4C4CFF',
+
+            'decline_button_background' => '#f5f5f5',
+            'decline_button_text_color' => '#333333',
+            'decline_button_border_color' => '#dddddd',
+
+            'save_button_background' => '#e0e0fd',
+            'save_button_text_color' => '#333333',
+            'save_button_border_color' => '#4C4CFF',
+
+            // Typography
+            'font_family' => 'inherit',
+            'font_size' => '14px',
+            'font_weight' => 'normal',
+
+            // Spacing
+            'banner_padding' => '15px',
+            'button_padding' => '8px 16px',
+            'elements_spacing' => '10px',
+            'border_radius' => '4px',
+
+            // Animation
+            'animation_type' => 'fade',
+            'animation_speed' => '0.3s',
+
+            // Advanced
+            'mobile_breakpoint' => '768px',
+            'z_index' => '9999',
+        ];
+
+        $saved_design = get_option('custom_cookie_design', []);
+        $design = array_merge($default_design, $saved_design);
+
+        include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/design.php';
     }
 
     public function render_translations_page()

@@ -112,19 +112,228 @@ class BannerGenerator
      */
     public function generate_template($categories, $settings)
     {
-        // Start with the banner shell.
-        ob_start();
+        // Get design settings if available
+        $design = get_option('custom_cookie_design', array());
 
-        // Get position - check both settings keys for backwards compatibility.
-        $position = 'bottom'; // Default to bottom.
-        if (isset($settings['position']) && in_array($settings['position'], array('bottom', 'top', 'center'), true)) {
+        // Get position - check both settings keys for backwards compatibility
+        $position = 'bottom'; // Default to bottom
+        if (isset($design['banner_position']) && in_array($design['banner_position'], array('bottom', 'top', 'center', 'bottom-left', 'bottom-right'), true)) {
+            $position = $design['banner_position'];
+        } elseif (isset($settings['position']) && in_array($settings['position'], array('bottom', 'top', 'center'), true)) {
             $position = $settings['position'];
         } elseif (isset($settings['banner_position']) && in_array($settings['banner_position'], array('bottom', 'top', 'center'), true)) {
             $position = $settings['banner_position'];
         }
+
+        // Start capturing output
+        ob_start();
 ?>
+        `<style>
+            /* Base styles for the cookie consent banner */
+            .cookie-consent-banner {
+                font-family: <?php echo esc_html($design['font_family'] ?? 'inherit'); ?>;
+                font-size: <?php echo esc_html($design['font_size'] ?? '14px'); ?>;
+                font-weight: <?php echo esc_html($design['font_weight'] ?? 'normal'); ?>;
+                display: none;
+                position: fixed;
+                box-sizing: border-box;
+                z-index: <?php echo absint($design['z_index'] ?? 9999); ?>;
+                width: 100%;
+                max-width: 100%;
+                padding: 0;
+                margin: 0;
+                left: 0;
+                border: none;
+                background: <?php echo esc_html($design['banner_background_color'] ?? '#ffffff'); ?>;
+                color: <?php echo esc_html($design['banner_text_color'] ?? '#333333'); ?>;
+                border: 1px solid <?php echo esc_html($design['banner_border_color'] ?? '#dddddd'); ?>;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+
+            /* Banner positions */
+            .cookie-consent-banner.position-bottom {
+                bottom: 0;
+            }
+
+            .cookie-consent-banner.position-top {
+                top: 0;
+            }
+
+            .cookie-consent-banner.position-bottom-left {
+                bottom: 20px;
+                left: 20px;
+                max-width: 400px;
+                border-radius: <?php echo esc_html($design['border_radius'] ?? '4px'); ?>;
+            }
+
+            .cookie-consent-banner.position-bottom-right {
+                bottom: 20px;
+                right: 20px;
+                left: auto;
+                max-width: 400px;
+                border-radius: <?php echo esc_html($design['border_radius'] ?? '4px'); ?>;
+            }
+
+            .cookie-consent-banner.position-center {
+                bottom: 0;
+                top: 0;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.5);
+                border: none;
+            }
+
+            .cookie-consent-banner.position-center .cookie-consent-container {
+                max-width: 700px;
+                border-radius: <?php echo esc_html($design['border_radius'] ?? '4px'); ?>;
+                background: <?php echo esc_html($design['banner_background_color'] ?? '#ffffff'); ?>;
+                border: 1px solid <?php echo esc_html($design['banner_border_color'] ?? '#dddddd'); ?>;
+                margin: 20px;
+                max-height: 90vh;
+                overflow: auto;
+            }
+
+            /* Banner layout options */
+            <?php if (isset($design['banner_layout']) && $design['banner_layout'] === 'card'): ?>.cookie-consent-banner:not(.position-center) {
+                left: 50%;
+                transform: translateX(-50%);
+                max-width: 700px;
+                margin: 0 auto;
+                border-radius: <?php echo esc_html($design['border_radius'] ?? '4px'); ?>;
+            }
+
+            .cookie-consent-banner.position-bottom:not(.position-bottom-left):not(.position-bottom-right) {
+                bottom: 20px;
+            }
+
+            .cookie-consent-banner.position-top:not(.position-bottom-left):not(.position-bottom-right) {
+                top: 20px;
+            }
+
+            <?php endif; ?>
+
+            /* Container styling */
+            .cookie-consent-container {
+                padding: <?php echo esc_html($design['banner_padding'] ?? '15px'); ?>;
+            }
+
+            /* Spacing between elements */
+            .cookie-consent-header,
+            .cookie-consent-options,
+            .cookie-consent-footer {
+                margin-bottom: <?php echo esc_html($design['elements_spacing'] ?? '10px'); ?>;
+            }
+
+            /* Typography */
+            .cookie-consent-banner h2 {
+                margin-top: 0;
+                font-size: 1.2em;
+                font-weight: bold;
+            }
+
+            /* Button styles */
+            .cookie-consent-buttons {
+                display: flex;
+                flex-wrap: wrap;
+                gap: <?php echo esc_html($design['elements_spacing'] ?? '10px'); ?>;
+                margin: 15px 0;
+            }
+
+            .cookie-consent-buttons button {
+                cursor: pointer;
+                border-radius: <?php echo esc_html($design['border_radius'] ?? '4px'); ?>;
+                padding: <?php echo esc_html($design['button_padding'] ?? '8px 16px'); ?>;
+                font-family: inherit;
+                font-size: inherit;
+                line-height: 1.5;
+                text-align: center;
+            }
+
+            /* Accept button */
+            .cookie-consent-accept {
+                background-color: <?php echo esc_html($design['accept_button_background'] ?? '#4C4CFF'); ?>;
+                color: <?php echo esc_html($design['accept_button_text_color'] ?? '#ffffff'); ?>;
+                border: 1px solid <?php echo esc_html($design['accept_button_border_color'] ?? '#4C4CFF'); ?>;
+            }
+
+            /* Save preferences button */
+            .cookie-consent-save-custom {
+                background-color: <?php echo esc_html($design['save_button_background'] ?? '#e0e0fd'); ?>;
+                color: <?php echo esc_html($design['save_button_text_color'] ?? '#333333'); ?>;
+                border: 1px solid <?php echo esc_html($design['save_button_border_color'] ?? '#4C4CFF'); ?>;
+            }
+
+            /* Decline button */
+            .cookie-consent-decline {
+                background-color: <?php echo esc_html($design['decline_button_background'] ?? '#f5f5f5'); ?>;
+                color: <?php echo esc_html($design['decline_button_text_color'] ?? '#333333'); ?>;
+                border: 1px solid <?php echo esc_html($design['decline_button_border_color'] ?? '#dddddd'); ?>;
+            }
+
+            /* Accessibility: ensure focus states are visible */
+            .cookie-consent-buttons button:focus,
+            .cookie-consent-banner a:focus {
+                outline: 2px solid #4C4CFF;
+                outline-offset: 2px;
+            }
+
+            /* Animation settings */
+            <?php if (isset($design['animation_type']) && $design['animation_type'] !== 'none'): ?>@media (prefers-reduced-motion: no-preference) {
+                .cookie-consent-banner {
+                    transition: opacity <?php echo esc_html($design['animation_speed'] ?? '0.3s'); ?> ease-in-out <?php if (isset($design['animation_type']) && $design['animation_type'] === 'slide' && in_array($position, array('bottom', 'top'))): ?>, transform <?php echo esc_html($design['animation_speed'] ?? '0.3s'); ?> ease-in-out<?php endif; ?>;
+                }
+
+                <?php if (isset($design['animation_type']) && $design['animation_type'] === 'slide'): ?>.cookie-consent-banner.position-bottom {
+                    transform: translateY(100%);
+                }
+
+                .cookie-consent-banner.position-bottom.active {
+                    transform: translateY(0);
+                }
+
+                .cookie-consent-banner.position-top {
+                    transform: translateY(-100%);
+                }
+
+                .cookie-consent-banner.position-top.active {
+                    transform: translateY(0);
+                }
+
+                <?php endif; ?>.cookie-consent-banner:not(.active) {
+                    opacity: 0;
+                }
+
+                .cookie-consent-banner.active {
+                    opacity: 1;
+                }
+            }
+
+            <?php endif; ?>
+            /* Responsive adjustments */
+            @media screen and (max-width: <?php echo esc_html($design['mobile_breakpoint'] ?? '768px'); ?>) {
+                .cookie-consent-buttons {
+                    flex-direction: column;
+                }
+
+                .cookie-consent-buttons button {
+                    width: 100%;
+                }
+
+                .cookie-consent-banner.position-bottom-left,
+                .cookie-consent-banner.position-bottom-right {
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    max-width: 100%;
+                    margin: 0;
+                    border-radius: 0;
+                }
+            }
+        </style>
         const bannerTemplate = `
-        <div class="cookie-consent-banner" role="dialog" aria-modal="true" aria-labelledby="cookie-consent-title" aria-describedby="cookie-consent-description" data-timestamp="<?php echo esc_js($settings['last_updated'] ?? time()); ?>" data-position="<?php echo esc_js($position); ?>">
+        <div class="cookie-consent-banner position-<?php echo esc_js($position); ?>" role="dialog" aria-modal="true" aria-labelledby="cookie-consent-title" aria-describedby="cookie-consent-description" data-timestamp="<?php echo esc_js($settings['last_updated'] ?? time()); ?>" data-position="<?php echo esc_js($position); ?>">
             <button class="cookie-consent-close" aria-label="<?php echo esc_js($settings['close_button_aria_label'] ?? 'Lukk cookie-banner'); ?>"><?php echo esc_js($settings['close_button_text'] ?? 'Lukk'); ?> <span class="close-x" aria-hidden="true">×</span></button>
             <div class="cookie-consent-content">
                 <header>

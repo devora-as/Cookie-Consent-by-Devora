@@ -196,6 +196,7 @@ class CookieConsent
         // Admin-only AJAX endpoints
         add_action('wp_ajax_custom_cookie_save_settings', [$this, 'ajax_save_settings']);
         add_action('wp_ajax_custom_cookie_save_integration_settings', [$this, 'ajax_save_integration_settings']);
+        add_action('wp_ajax_custom_cookie_save_design', [$this, 'ajax_save_design']);
 
         // Front-end scripts and styles
         if (!is_admin()) {
@@ -257,6 +258,7 @@ class CookieConsent
     {
         // Handle AJAX calls for settings
         \add_action('wp_ajax_custom_cookie_save_settings', array($this, 'ajax_save_settings'));
+        \add_action('wp_ajax_custom_cookie_save_design', array($this, 'ajax_save_design'));
     }
 
     /**
@@ -526,6 +528,94 @@ class CookieConsent
             \wp_send_json_success(array('message' => __('Integration settings saved successfully', 'custom-cookie-consent')));
         } else {
             \wp_send_json_error(array('message' => __('No changes made or error saving integration settings', 'custom-cookie-consent')));
+        }
+    }
+
+    /**
+     * Handles AJAX request to save design settings.
+     */
+    public function ajax_save_design(): void
+    {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            $this->debug_log('ajax_save_design() - Received design settings save request', $_POST);
+        }
+
+        if (! isset($_POST['nonce']) || ! \wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_design_nonce')) {
+            \wp_send_json_error(array('message' => __('Invalid security token. Please refresh the page and try again.', 'custom-cookie-consent')));
+            return;
+        }
+
+        if (! \current_user_can('manage_options')) {
+            \wp_send_json_error(array('message' => __('Permission denied. You do not have sufficient permissions to modify these settings.', 'custom-cookie-consent')));
+            return;
+        }
+
+        // Parse the form data
+        parse_str($_POST['formData'], $form_data);
+
+        $design_settings = array();
+
+        // Banner appearance settings
+        $design_settings['inherit_theme'] = isset($form_data['inherit_theme']) ? (bool) $form_data['inherit_theme'] : false;
+        $design_settings['banner_position'] = isset($form_data['banner_position']) ? sanitize_text_field($form_data['banner_position']) : 'bottom';
+        $design_settings['banner_layout'] = isset($form_data['banner_layout']) ? sanitize_text_field($form_data['banner_layout']) : 'bar';
+
+        // Colors
+        $design_settings['banner_background_color'] = isset($form_data['banner_background_color']) ? sanitize_hex_color($form_data['banner_background_color']) : '#ffffff';
+        $design_settings['banner_text_color'] = isset($form_data['banner_text_color']) ? sanitize_hex_color($form_data['banner_text_color']) : '#333333';
+        $design_settings['banner_border_color'] = isset($form_data['banner_border_color']) ? sanitize_hex_color($form_data['banner_border_color']) : '#dddddd';
+
+        // Button colors
+        $design_settings['accept_button_background'] = isset($form_data['accept_button_background']) ? sanitize_hex_color($form_data['accept_button_background']) : '#4C4CFF';
+        $design_settings['accept_button_text_color'] = isset($form_data['accept_button_text_color']) ? sanitize_hex_color($form_data['accept_button_text_color']) : '#ffffff';
+        $design_settings['accept_button_border_color'] = isset($form_data['accept_button_border_color']) ? sanitize_hex_color($form_data['accept_button_border_color']) : '#4C4CFF';
+
+        $design_settings['save_button_background'] = isset($form_data['save_button_background']) ? sanitize_hex_color($form_data['save_button_background']) : '#e0e0fd';
+        $design_settings['save_button_text_color'] = isset($form_data['save_button_text_color']) ? sanitize_hex_color($form_data['save_button_text_color']) : '#333333';
+        $design_settings['save_button_border_color'] = isset($form_data['save_button_border_color']) ? sanitize_hex_color($form_data['save_button_border_color']) : '#4C4CFF';
+
+        $design_settings['decline_button_background'] = isset($form_data['decline_button_background']) ? sanitize_hex_color($form_data['decline_button_background']) : '#f5f5f5';
+        $design_settings['decline_button_text_color'] = isset($form_data['decline_button_text_color']) ? sanitize_hex_color($form_data['decline_button_text_color']) : '#333333';
+        $design_settings['decline_button_border_color'] = isset($form_data['decline_button_border_color']) ? sanitize_hex_color($form_data['decline_button_border_color']) : '#dddddd';
+
+        // Typography
+        $design_settings['font_family'] = isset($form_data['font_family']) ? sanitize_text_field($form_data['font_family']) : 'inherit';
+        $design_settings['font_size'] = isset($form_data['font_size']) ? sanitize_text_field($form_data['font_size']) : '14px';
+        $design_settings['font_weight'] = isset($form_data['font_weight']) ? sanitize_text_field($form_data['font_weight']) : 'normal';
+
+        // Spacing
+        $design_settings['banner_padding'] = isset($form_data['banner_padding']) ? sanitize_text_field($form_data['banner_padding']) : '15px';
+        $design_settings['button_padding'] = isset($form_data['button_padding']) ? sanitize_text_field($form_data['button_padding']) : '8px 16px';
+        $design_settings['elements_spacing'] = isset($form_data['elements_spacing']) ? sanitize_text_field($form_data['elements_spacing']) : '10px';
+        $design_settings['border_radius'] = isset($form_data['border_radius']) ? sanitize_text_field($form_data['border_radius']) : '4px';
+
+        // Animation
+        $design_settings['animation_type'] = isset($form_data['animation_type']) ? sanitize_text_field($form_data['animation_type']) : 'fade';
+        $design_settings['animation_speed'] = isset($form_data['animation_speed']) ? sanitize_text_field($form_data['animation_speed']) : '0.3s';
+
+        // Advanced
+        $design_settings['mobile_breakpoint'] = isset($form_data['mobile_breakpoint']) ? sanitize_text_field($form_data['mobile_breakpoint']) : '768px';
+        $design_settings['z_index'] = isset($form_data['z_index']) ? absint($form_data['z_index']) : 9999;
+
+        // Save the design settings
+        $updated = \update_option('custom_cookie_design', $design_settings);
+
+        // Force regeneration of the banner template with new design
+        if ($updated) {
+            // Force regeneration of the banner template
+            $banner_generator = new BannerGenerator();
+            $banner_generator->update_banner_template();
+
+            // Delete any cached version of the banner template
+            \delete_transient('custom_cookie_consent_banner_template');
+
+            // Add timestamp to design settings to force refresh client-side
+            $design_settings['last_updated'] = time();
+            \update_option('custom_cookie_design', $design_settings);
+
+            \wp_send_json_success(array('message' => __('Design settings saved successfully', 'custom-cookie-consent')));
+        } else {
+            \wp_send_json_error(array('message' => __('Error saving design settings. Please try again.', 'custom-cookie-consent')));
         }
     }
 
