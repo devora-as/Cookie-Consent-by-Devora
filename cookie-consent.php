@@ -71,11 +71,12 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-matomo-integration.php'
  */
 class CookieConsent
 {
-
-
-
-
-
+    /**
+     * Plugin version
+     *
+     * @var string
+     */
+    private string $version = '1.0.0';
 
     /**
      * @var CookieConsent|null
@@ -165,58 +166,78 @@ class CookieConsent
     }
 
     /**
-     * Initializes the plugin.
-     *
-     * @return void
+     * Initialize plugin
      */
     public function init(): void
     {
-        // Register hooks for frontend
-        add_action('wp_head', array($this, 'add_banner_position_css'));
-        add_action('wp_head', array($this, 'output_consent_mode'));
-        add_action('wp_head', array($this, 'output_consent_nonce'));
-        add_action('wp_head', array($this, 'output_early_anti_blocker'), 1); // High priority to load early
-        add_action('wp_footer', array($this, 'load_full_css'), 999);
+        // Initialize translations
+        load_plugin_textdomain('custom-cookie-consent', false, basename(dirname(__FILE__)) . '/languages/');
 
-        // Add GTM noscript tag if enabled
-        add_action('wp_body_open', array($this, 'output_gtm_noscript'));
+        // Add shortcode
+        add_shortcode('cookie_settings', [$this, 'cookie_settings_shortcode']);
+        add_shortcode('show_my_consent_data', [$this, 'show_consent_data_shortcode']);
 
-        // Register REST routes
-        add_action('rest_api_init', array($this, 'register_routes'));
+        // Register AJAX endpoints
+        add_action('wp_ajax_custom_cookie_scan', [$this, 'ajax_scan_cookies']);
+        add_action('wp_ajax_nopriv_custom_cookie_scan', [$this, 'ajax_scan_cookies']);
+        add_action('wp_ajax_custom_cookie_save_consent', [$this, 'ajax_save_consent']);
+        add_action('wp_ajax_nopriv_custom_cookie_save_consent', [$this, 'ajax_save_consent']);
+        add_action('wp_ajax_custom_cookie_get_consent', [$this, 'ajax_get_consent_data']);
+        add_action('wp_ajax_nopriv_custom_cookie_get_consent', [$this, 'ajax_get_consent_data']);
 
-        // Register shortcodes
-        add_shortcode('cookie_settings', array($this, 'cookie_settings_shortcode'));
-        add_shortcode('consent_data', array($this, 'show_consent_data_shortcode'));
-        add_shortcode('show_my_consent_data', array($this, 'show_consent_data_shortcode'));
+        // Admin-only AJAX endpoints
+        add_action('wp_ajax_custom_cookie_save_settings', [$this, 'ajax_save_settings']);
+        add_action('wp_ajax_custom_cookie_save_integration_settings', [$this, 'ajax_save_integration_settings']);
 
-        // Register AJAX handlers
-        add_action('wp_ajax_custom_cookie_save_settings', array($this, 'ajax_save_settings'));
-        add_action('wp_ajax_custom_cookie_save_integration_settings', array($this, 'ajax_save_integration_settings'));
-        add_action('wp_ajax_nopriv_custom_cookie_save_consent', array($this, 'ajax_save_consent'));
-        add_action('wp_ajax_custom_cookie_save_consent', array($this, 'ajax_save_consent'));
-        add_action('wp_ajax_nopriv_custom_cookie_get_consent', array($this, 'ajax_get_consent_data'));
-        add_action('wp_ajax_custom_cookie_get_consent', array($this, 'ajax_get_consent_data'));
+        // Front-end scripts and styles
+        if (!is_admin()) {
+            add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
 
-        // Register assets
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_assets'));
+            // Consent nonce for AJAX requests
+            add_action('wp_head', [$this, 'output_consent_nonce']);
 
-        // Admin hooks
-        if (is_admin()) {
-            add_action('admin_init', array($this, 'handle_admin_actions'));
+            // Output consent schema (JSON-LD)
+            add_action('wp_head', [$this, 'output_consent_schema']);
+
+            // Google consent mode
+            add_action('wp_head', [$this, 'output_consent_mode'], 1);
+
+            // Add GTM noscript tag
+            add_action('wp_body_open', [$this, 'output_gtm_noscript'], 1);
+
+            // Early anti-blocker script
+            add_action('wp_head', [$this, 'output_early_anti_blocker'], 0);
+
+            // Add additional CSS for banner position
+            add_action('wp_footer', [$this, 'add_banner_position_css'], 100);
         }
 
-        // WP Core integrations
-        add_filter('googlesitekit_consent_settings', array($this, 'filter_sitekit_consent_settings'));
-        add_filter('wp_sitemaps_post_types', array($this, 'exclude_from_sitemap'));
-        add_filter('robots_txt', array($this, 'modify_robots_txt'), 10, 1);
+        // Handle admin hooks separately
+        if (is_admin()) {
+            $this->handle_admin_actions();
+        }
 
-        // Privacy integrations
-        add_action('admin_init', array($this, 'add_privacy_policy_content'));
-        add_filter('wp_privacy_personal_data_exporters', array($this, 'register_privacy_exporters'));
-        add_filter('wp_privacy_personal_data_erasers', array($this, 'register_privacy_erasers'));
+        // Privacy policy hooks
+        add_action('admin_init', [$this, 'add_privacy_policy_content']);
 
-        // Register custom cookies
+        // Register GDPR exporters and erasers
+        add_filter('wp_privacy_personal_data_exporters', [$this, 'register_privacy_exporters']);
+        add_filter('wp_privacy_personal_data_erasers', [$this, 'register_privacy_erasers']);
+
+        // Robots.txt
+        add_filter('robots_txt', [$this, 'modify_robots_txt']);
+
+        // Exclude cookie policy from sitemap
+        add_filter('wp_sitemaps_post_types', [$this, 'exclude_from_sitemap']);
+
+        // Register REST API endpoints
+        add_action('rest_api_init', [$this, 'register_routes']);
+
+        // Register cookies
         $this->register_cookies();
+
+        // Maybe update database schema
+        $this->maybe_update_db_schema();
     }
 
     /**
@@ -1106,45 +1127,77 @@ class CookieConsent
     }
 
     /**
-     * Gets the user consent data for display.
+     * Get user consent data from browser cookies and server-side storage
      *
-     * @return array
+     * @param bool $include_all_cookies Whether to include all detected cookies
+     * @return array User consent data
      */
-    public function get_user_consent_data(): array
+    public function get_user_consent_data(bool $include_all_cookies = false): array
     {
-        // Default data to return
-        $consent_data = [
-            'consent_status' => [
-                'necessary' => true,
-                'analytics' => false,
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Starting consent data collection');
+        }
+
+        // Initialize with default values (only necessary cookies are permitted by default)
+        $consent_data = array(
+            'cookies_present' => array(),
+            'consent_status'  => array(
+                'necessary'  => true,
+                'analytics'  => false,
                 'functional' => false,
-                'marketing' => false
-            ],
-            'cookies_present' => []
-        ];
+                'marketing'  => false,
+            ),
+        );
 
         try {
-            // Get stored consent
+            // Get stored consent from cookie or localStorage (this is the source of truth)
             $stored_consent = $this->get_stored_consent();
 
-            if ($stored_consent && !empty($stored_consent['categories'])) {
-                $consent_data['consent_status'] = $stored_consent['categories'];
-
-                // Always ensure necessary cookies are true
-                $consent_data['consent_status']['necessary'] = true;
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Stored consent data: ' . ($stored_consent ? json_encode($stored_consent) : 'None'));
             }
+
+            // If we have stored consent from the client, use that as the primary source
+            if ($stored_consent && isset($stored_consent['categories'])) {
+                // Only update specific categories from stored consent
+                foreach ($stored_consent['categories'] as $category => $status) {
+                    if (isset($consent_data['consent_status'][$category])) {
+                        // Ensure we convert to boolean
+                        $consent_data['consent_status'][$category] = (bool)$status;
+
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            error_log('Updated consent status from client storage: ' . $category . ' = ' .
+                                ($consent_data['consent_status'][$category] ? 'true' : 'false'));
+                        }
+                    }
+                }
+            }
+            // For logged-in users, also check user meta as a backup
+            elseif (is_user_logged_in()) {
+                $user_consent = get_user_meta(get_current_user_id(), 'custom_cookie_consent_data', true);
+
+                if ($user_consent && isset($user_consent['categories'])) {
+                    foreach ($user_consent['categories'] as $category => $status) {
+                        if (isset($consent_data['consent_status'][$category])) {
+                            // Ensure we convert to boolean
+                            $consent_data['consent_status'][$category] = (bool)$status;
+                        }
+                    }
+                }
+            }
+
+            // Always ensure necessary cookies are allowed
+            $consent_data['consent_status']['necessary'] = true;
 
             // Get all browser cookies
             $all_cookies = $this->get_all_browser_cookies();
 
-            // Keep track of all cookies grouped by category
+            // Settings for registered cookies in each category
+            $settings = get_option('custom_cookie_settings', []);
             $cookies_by_category = [];
 
-            // Get the current admin settings
-            $settings = get_option('custom_cookie_settings', []);
-
-            // Necessary cookies - default ones built into the plugin
-            $necessary_cookies = [
+            // Necessary cookies - always include the consent cookie
+            $cookies_by_category['necessary'] = [
                 [
                     'name' => 'devora_cookie_consent',
                     'category' => 'necessary',
@@ -1153,13 +1206,26 @@ class CookieConsent
                 ]
             ];
 
-            // Add necessary cookies
+            // Add WordPress cookies to necessary
+            $wp_cookies = ['wordpress_test_cookie', 'wp-settings-time', 'wp_lang'];
+            foreach ($wp_cookies as $wp_cookie) {
+                if (isset($all_cookies[$wp_cookie])) {
+                    $cookies_by_category['necessary'][] = [
+                        'name' => $wp_cookie,
+                        'category' => 'necessary',
+                        'description' => __('WordPress cookie required for site functionality', 'custom-cookie-consent'),
+                        'expiry' => 'Session'
+                    ];
+                }
+            }
+
+            // Add registered necessary cookies from settings
             if (isset($settings['necessary_cookies'])) {
                 $registered_cookies = array_filter(explode("\n", $settings['necessary_cookies']));
                 foreach ($registered_cookies as $cookie_name) {
                     $cookie_name = trim($cookie_name);
                     if (!empty($cookie_name)) {
-                        $necessary_cookies[] = [
+                        $cookies_by_category['necessary'][] = [
                             'name' => $cookie_name,
                             'category' => 'necessary',
                             'description' => isset($settings['necessary_description']) ? $settings['necessary_description'] : __('Required for the website to function', 'custom-cookie-consent'),
@@ -1169,15 +1235,11 @@ class CookieConsent
                 }
             }
 
-            // Add necessary cookies to list
-            foreach ($necessary_cookies as $cookie) {
-                $cookies_by_category['necessary'][] = $cookie;
-            }
-
-            // Analytics cookies
+            // Add registered analytics cookies
             if (isset($settings['analytics_cookies'])) {
-                $analytics_cookies = array_filter(explode("\n", $settings['analytics_cookies']));
-                foreach ($analytics_cookies as $cookie_name) {
+                $cookies_by_category['analytics'] = [];
+                $registered_cookies = array_filter(explode("\n", $settings['analytics_cookies']));
+                foreach ($registered_cookies as $cookie_name) {
                     $cookie_name = trim($cookie_name);
                     if (!empty($cookie_name)) {
                         $cookies_by_category['analytics'][] = [
@@ -1190,10 +1252,11 @@ class CookieConsent
                 }
             }
 
-            // Functional cookies
+            // Add registered functional cookies
             if (isset($settings['functional_cookies'])) {
-                $functional_cookies = array_filter(explode("\n", $settings['functional_cookies']));
-                foreach ($functional_cookies as $cookie_name) {
+                $cookies_by_category['functional'] = [];
+                $registered_cookies = array_filter(explode("\n", $settings['functional_cookies']));
+                foreach ($registered_cookies as $cookie_name) {
                     $cookie_name = trim($cookie_name);
                     if (!empty($cookie_name)) {
                         $cookies_by_category['functional'][] = [
@@ -1206,10 +1269,11 @@ class CookieConsent
                 }
             }
 
-            // Marketing cookies
+            // Add registered marketing cookies
             if (isset($settings['marketing_cookies'])) {
-                $marketing_cookies = array_filter(explode("\n", $settings['marketing_cookies']));
-                foreach ($marketing_cookies as $cookie_name) {
+                $cookies_by_category['marketing'] = [];
+                $registered_cookies = array_filter(explode("\n", $settings['marketing_cookies']));
+                foreach ($registered_cookies as $cookie_name) {
                     $cookie_name = trim($cookie_name);
                     if (!empty($cookie_name)) {
                         $cookies_by_category['marketing'][] = [
@@ -1222,12 +1286,113 @@ class CookieConsent
                 }
             }
 
-            // Combine all present cookies from all categories into a single array
+            // Get detected cookies from the cookie scanner
+            $detected_cookies = get_option('custom_cookie_detected', array());
+
+            // Process all browser cookies - either add to appropriate category or categorize
+            foreach ($all_cookies as $name => $value) {
+                $found = false;
+
+                // First check if it's a registered cookie
+                foreach ($cookies_by_category as $category => $cookies) {
+                    foreach ($cookies as $cookie) {
+                        if ($cookie['name'] === $name) {
+                            $found = true;
+                            break 2;
+                        }
+                    }
+                }
+
+                // If not registered, check if it's detected and categorized
+                if (!$found || $include_all_cookies) {
+                    $existing_category = null;
+
+                    // Look for this cookie in detected cookies
+                    foreach ($detected_cookies as $detected) {
+                        if (
+                            isset($detected['name']) && $detected['name'] === $name &&
+                            isset($detected['status']) && $detected['status'] === 'categorized' &&
+                            isset($detected['category'])
+                        ) {
+
+                            $existing_category = $detected['category'];
+
+                            if (!isset($cookies_by_category[$existing_category])) {
+                                $cookies_by_category[$existing_category] = [];
+                            }
+
+                            // Add cookie to the appropriate category
+                            $cookies_by_category[$existing_category][] = [
+                                'name' => $name,
+                                'category' => $existing_category,
+                                'description' => isset($detected['description']) ? $detected['description'] : '',
+                                'expiry' => isset($detected['expires']) ? $detected['expires'] : $this->get_cookie_expiry($name),
+                                'source' => isset($detected['source']) ? $detected['source'] : ''
+                            ];
+
+                            $found = true;
+                            break;
+                        }
+                    }
+
+                    // If still not found or we want all cookies, auto-categorize
+                    if ((!$found || $include_all_cookies) && !in_array($name, ['devora_cookie_consent'])) {
+                        // Auto-categorize
+                        $category = $this->categorize_cookie($name);
+
+                        if (!isset($cookies_by_category[$category])) {
+                            $cookies_by_category[$category] = [];
+                        }
+
+                        // See if we have a detected cookie to use for description
+                        $description = '';
+                        $expires = '';
+                        $source = '';
+
+                        foreach ($detected_cookies as $detected) {
+                            if (isset($detected['name']) && $detected['name'] === $name) {
+                                $description = isset($detected['description']) ? $detected['description'] : '';
+                                $expires = isset($detected['expires']) ? $detected['expires'] : '';
+                                $source = isset($detected['source']) ? $detected['source'] : '';
+                                break;
+                            }
+                        }
+
+                        // If no description, generate one
+                        if (empty($description)) {
+                            $description = $this->get_cookie_description($name, $category);
+                        }
+
+                        // If no expiry, try to determine
+                        if (empty($expires)) {
+                            $expires = $this->get_cookie_expiry($name);
+                        }
+
+                        // If no source, try to determine
+                        if (empty($source)) {
+                            $source = $this->detect_cookie_source($name);
+                        }
+
+                        // Add the cookie to its category
+                        $cookies_by_category[$category][] = [
+                            'name' => $name,
+                            'category' => $category,
+                            'description' => $description,
+                            'expiry' => $expires,
+                            'source' => $source
+                        ];
+                    }
+                }
+            }
+
+            // Combine all cookies into a single array based on consent status
             $cookies_present = [];
 
             foreach ($cookies_by_category as $category => $cookies) {
-                // Only include cookies from categories the user has consented to
+                // Only include necessary cookies or categories the user has consented to
+                // But if include_all_cookies is true, include everything
                 if (
+                    $include_all_cookies ||
                     $category === 'necessary' ||
                     (isset($consent_data['consent_status'][$category]) && $consent_data['consent_status'][$category])
                 ) {
@@ -1242,6 +1407,13 @@ class CookieConsent
             // Detect if we have any Google Analytics cookies
             $consent_data['has_ga'] = $this->has_ga_cookies();
 
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('Final consent data: ' . json_encode([
+                    'consent_status' => $consent_data['consent_status'],
+                    'cookies_count' => count($consent_data['cookies_present']),
+                ]));
+            }
+
             return $consent_data;
         } catch (Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -1252,7 +1424,7 @@ class CookieConsent
     }
 
     /**
-     * Get all browser cookies from $_COOKIE
+     * Get all cookies from the browser request
      *
      * @return array
      */
@@ -1260,13 +1432,47 @@ class CookieConsent
     {
         $cookies = array();
 
-        foreach ($_COOKIE as $name => $value) {
-            // Skip some WordPress cookies if needed
-            if (strpos($name, 'wordpress_test_cookie') !== false) {
-                continue;
+        // Get cookies from $_COOKIE superglobal
+        if (!empty($_COOKIE)) {
+            foreach ($_COOKIE as $name => $value) {
+                // Skip cookies that have array values
+                if (is_array($value)) {
+                    continue;
+                }
+                $cookies[$name] = $value;
             }
+        }
 
-            $cookies[$name] = $value;
+        // Try to detect cookies in HTTP_COOKIE for better coverage
+        if (isset($_SERVER['HTTP_COOKIE'])) {
+            $raw_cookies = sanitize_text_field(wp_unslash($_SERVER['HTTP_COOKIE']));
+            $cookies_arr = explode(';', $raw_cookies);
+
+            foreach ($cookies_arr as $cookie) {
+                $parts = explode('=', $cookie, 2);
+                if (count($parts) === 2) {
+                    $name = trim($parts[0]);
+                    $value = trim($parts[1]);
+
+                    // Skip if already in the array
+                    if (!isset($cookies[$name])) {
+                        $cookies[$name] = $value;
+                    }
+                }
+            }
+        }
+
+        // Get detected cookies from scanner to include third-party domains
+        $detected_cookies = get_option('custom_cookie_detected', array());
+        foreach ($detected_cookies as $detected) {
+            if (isset($detected['name']) && !isset($cookies[$detected['name']])) {
+                // Include detected cookies that might not be directly visible
+                $cookies[$detected['name']] = 'detected';
+            }
+        }
+
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Detected cookies: ' . json_encode(array_keys($cookies)));
         }
 
         return $cookies;
@@ -1279,80 +1485,43 @@ class CookieConsent
      */
     public function get_stored_consent(): ?array
     {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('Starting consent retrieval');
-        }
+        $consent_data = null;
+        $cookie_name = 'devora_cookie_consent';
 
-        // First try: Direct $_COOKIE access
-        if (isset($_COOKIE[$this->storageKey])) {
-            $cookie_value = sanitize_text_field(wp_unslash($_COOKIE[$this->storageKey]));
+        // Try to get from cookie first
+        if (isset($_COOKIE[$cookie_name])) {
+            try {
+                $cookie_value = sanitize_text_field(wp_unslash($_COOKIE[$cookie_name]));
+                $decoded = json_decode($cookie_value, true);
 
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                $this->debug_log('Found cookie in $_COOKIE array', $cookie_value);
-            }
-
-            $result = $this->parse_consent_value($cookie_value);
-            if ($result) {
-                return $result;
-            }
-        }
-
-        // Second try: Check in raw HTTP_COOKIE
-        if (isset($_SERVER['HTTP_COOKIE'])) {
-            // Properly sanitize and unslash the HTTP_COOKIE server variable
-            $raw_cookies = sanitize_text_field(wp_unslash($_SERVER['HTTP_COOKIE']));
-            $cookies_arr = explode(';', $raw_cookies);
-
-            foreach ($cookies_arr as $cookie) {
-                $parts = explode('=', $cookie, 2);
-                $name  = trim($parts[0]);
-
-                if ($name === $this->storageKey && isset($parts[1])) {
-                    $value = trim($parts[1]);
+                if (is_array($decoded) && isset($decoded['categories'])) {
+                    $consent_data = $decoded;
 
                     if (defined('WP_DEBUG') && WP_DEBUG) {
-                        $this->debug_log('Found cookie in HTTP_COOKIE', $value);
+                        error_log('Retrieved consent from cookie: ' . json_encode($consent_data));
                     }
-
-                    $result = $this->parse_consent_value($value);
-                    if ($result) {
-                        return $result;
-                    }
+                }
+            } catch (Exception $e) {
+                if (defined('WP_DEBUG') && WP_DEBUG) {
+                    error_log('Error decoding cookie consent: ' . $e->getMessage());
                 }
             }
         }
 
-        // Third try: Check headers for Set-Cookie
-        $headers = headers_list();
-        foreach ($headers as $header) {
-            if (strpos($header, 'Set-Cookie: ' . $this->storageKey . '=') === 0) {
-                $cookie_string = substr($header, strlen('Set-Cookie: '));
-                $value_part    = explode(';', $cookie_string)[0];
-                $value         = substr($value_part, strlen($this->storageKey . '='));
+        // If no cookie data, try to get from server for logged-in users
+        if (!$consent_data && is_user_logged_in()) {
+            $user_consent = get_user_meta(get_current_user_id(), 'custom_cookie_consent_data', true);
+
+            if (is_array($user_consent) && isset($user_consent['categories'])) {
+                $consent_data = $user_consent;
 
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    $this->debug_log('Found cookie in headers', $value);
-                }
-
-                $result = $this->parse_consent_value($value);
-                if ($result) {
-                    return $result;
+                    error_log('Retrieved consent from user meta: ' . json_encode($consent_data));
                 }
             }
         }
 
-        // Last resort: Check localStorage via JavaScript
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('Cookie not found in any server sources, will check localStorage via JS');
-        }
-
-        // Add a fallback to empty consent with only necessary cookies
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('Using fallback consent (necessary only)');
-        }
-
-        // Fallback to localStorage will be handled by the JS code
-        return null;
+        return $consent_data;
     }
 
     /**
@@ -1534,310 +1703,560 @@ class CookieConsent
     }
 
     /**
-     * Show consent data shortcode.
+     * Shortcode for showing current user consent data
      *
-     * Usage: [show_my_consent_data]
-     *
-     * @return string
+     * @param array $atts Shortcode attributes
+     * @return string HTML output
      */
-    public function show_consent_data_shortcode(): string
+    public function show_consent_data_shortcode(array $atts = []): string
     {
-        // Create a timestamp to ensure scripts/styles have unique cache busters
-        $timestamp = time();
+        // Add nocache headers to prevent caching this page
+        if (!defined('DONOTCACHEPAGE')) {
+            define('DONOTCACHEPAGE', true);
+        }
 
-        // Get settings
+        // Apply nocache headers if page contains this shortcode
+        nocache_headers();
+
+        // Enqueue the required scripts/styles for this shortcode
+        // Only enqueue if not already loaded
+        if (!wp_script_is('custom-cookie-consent', 'enqueued')) {
+            $this->enqueue_scripts();
+        }
+
+        // Generate a unique nonce for AJAX security
+        $nonce = wp_create_nonce('consent_data_nonce');
+
+        // Directly inject ajaxurl for front-end
+        $ajaxurl = esc_js(admin_url('admin-ajax.php'));
+
+        // Get settings for JavaScript templating - use Norwegian text if available
         $settings = get_option('custom_cookie_settings', array());
+        $necessary_title = isset($settings['necessary_title']) && !empty($settings['necessary_title']) ?
+            esc_js($settings['necessary_title']) : __('Nødvendige', 'custom-cookie-consent');
+        $analytics_title = isset($settings['analytics_title']) && !empty($settings['analytics_title']) ?
+            esc_js($settings['analytics_title']) : __('Analyse', 'custom-cookie-consent');
+        $functional_title = isset($settings['functional_title']) && !empty($settings['functional_title']) ?
+            esc_js($settings['functional_title']) : __('Funksjonell', 'custom-cookie-consent');
+        $marketing_title = isset($settings['marketing_title']) && !empty($settings['marketing_title']) ?
+            esc_js($settings['marketing_title']) : __('Markedsføring', 'custom-cookie-consent');
 
-        // Create a nonce that will work properly with our AJAX endpoint
-        $nonce = wp_create_nonce('cookie_management');
+        $consent_choices_heading = isset($settings['consent_choices_heading']) && !empty($settings['consent_choices_heading']) ?
+            esc_js($settings['consent_choices_heading']) : __('Dine samtykkevalg', 'custom-cookie-consent');
+        $active_cookies_heading = isset($settings['active_cookies_heading']) && !empty($settings['active_cookies_heading']) ?
+            esc_js($settings['active_cookies_heading']) : __('Aktive informasjonskapsler', 'custom-cookie-consent');
+        $last_updated = isset($settings['consent_last_updated']) && !empty($settings['consent_last_updated']) ?
+            esc_js($settings['consent_last_updated']) : __('Sist oppdatert', 'custom-cookie-consent');
 
-        // Create a placeholder that will be populated via AJAX
-        $output = '<div class="cookie-consent-data-display" style="max-width: 800px; margin: 2rem auto; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
+        $consent_status_accepted = isset($settings['consent_status_accepted']) && !empty($settings['consent_status_accepted']) ?
+            esc_js($settings['consent_status_accepted']) : __('Godtatt', 'custom-cookie-consent');
+        $consent_status_declined = isset($settings['consent_status_declined']) && !empty($settings['consent_status_declined']) ?
+            esc_js($settings['consent_status_declined']) : __('Avslått', 'custom-cookie-consent');
+
+        $cookie_category_label = isset($settings['cookie_category_label']) && !empty($settings['cookie_category_label']) ?
+            esc_js($settings['cookie_category_label']) : __('Kategori', 'custom-cookie-consent');
+        $cookie_purpose_label = isset($settings['cookie_purpose_label']) && !empty($settings['cookie_purpose_label']) ?
+            esc_js($settings['cookie_purpose_label']) : __('Formål', 'custom-cookie-consent');
+        $cookie_expiry_label = isset($settings['cookie_expiry_label']) && !empty($settings['cookie_expiry_label']) ?
+            esc_js($settings['cookie_expiry_label']) : __('Utløper', 'custom-cookie-consent');
+
+        $no_cookies_message = isset($settings['no_cookies_message']) && !empty($settings['no_cookies_message']) ?
+            esc_js($settings['no_cookies_message']) : __('Ingen informasjonskapsler oppdaget.', 'custom-cookie-consent');
+        $edit_consent_button_text = isset($settings['edit_consent_button_text']) && !empty($settings['edit_consent_button_text']) ?
+            esc_js($settings['edit_consent_button_text']) : __('ENDRE SAMTYKKEINNSTILLINGER', 'custom-cookie-consent');
+
+        $error_message = esc_js(__('Feil ved lasting av samtykkedata. Vennligst prøv igjen.', 'custom-cookie-consent'));
+
+        $output = '<div class="cookie-consent-data-display" id="devora-consent-data" style="max-width: 800px; margin: 2rem auto; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">';
+        $output .= '<input type="hidden" id="consent_data_nonce" value="' . esc_attr($nonce) . '">';
+        $output .= '<input type="hidden" id="consent_data_ajaxurl" value="' . esc_attr($ajaxurl) . '">';
 
         // Add loading indicator
-        $output .= '<div id="cookie-consent-data-loading" style="text-align: center; padding: 2rem;">
-            <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid rgba(76, 76, 255, 0.3); border-radius: 50%; border-top-color: #4C4CFF; animation: cookie-consent-spin 1s ease-in-out infinite;"></div>
-            <p>' . esc_html__('Loading consent data...', 'custom-cookie-consent') . '</p>
+        $output .= '<div id="cookie-consent-data-loading" class="consent-loading" style="text-align: center; padding: 2rem;">
+            <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid rgba(42, 46, 100, 0.3); border-radius: 50%; border-top-color: #2a2e64; animation: cookie-consent-spin 1s ease-in-out infinite;"></div>
+            <p>' . esc_html__('Laster samtykkedata...', 'custom-cookie-consent') . '</p>
         </div>';
 
         // Container for consent data
         $output .= '<div id="cookie-consent-data-container" style="display: none;"></div>';
 
-        // Add refresh button
+        // Add footer with button to open consent settings
         $output .= '<div style="margin-top: 2rem; text-align: center;">
-            <button type="button" id="cookie-consent-refresh" style="background-color: #4C4CFF; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">
-                ' . esc_html__('Refresh Consent Data', 'custom-cookie-consent') . '
+            <button type="button" id="cookie-consent-settings-button" class="open-cookie-settings" style="background-color: #2a2e64; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;">
+                ' . esc_html($edit_consent_button_text) . '
             </button>
         </div>';
 
-        // Add CSS for spinner
+        // Add CSS for spinner and data display
         $output .= '<style>
             @keyframes cookie-consent-spin {
                 to { transform: rotate(360deg); }
             }
+            .cookie-consent-data-display {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+                color: #333;
+                line-height: 1.6;
+            }
+            .cookie-consent-data-display h3, 
+            .cookie-consent-data-display h4, 
+            .cookie-consent-data-display h5 {
+                margin-top: 1.5rem;
+                margin-bottom: 0.75rem;
+                color: #222;
+                font-weight: 600;
+            }
+            .cookie-consent-data-display .timestamp {
+                color: #666;
+                font-size: 0.9em;
+                margin-bottom: 1rem;
+            }
+            .cookie-consent-data-display .consent-category {
+                margin-bottom: 0.75rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            .cookie-consent-data-display .category-name {
+                font-weight: 500;
+            }
+            .cookie-consent-data-display .status-accepted {
+                color: #2a2e64;
+                font-weight: 500;
+            }
+            .cookie-consent-data-display .status-declined {
+                color: #666;
+                font-weight: 500;
+            }
+            .cookie-consent-data-display .cookie-category-wrap {
+                margin-bottom: 1.5rem;
+            }
+            .cookie-consent-data-display .cookie-category-title {
+                margin: 0;
+                padding: 0.75rem;
+                background: #f1f1f1;
+                color: #333;
+                font-weight: 600;
+                font-size: 1.1em;
+                display: block;
+                width: 100%;
+                border-left: 3px solid #2a2e64;
+            }
+            .cookie-consent-data-display .cookie-list {
+                margin-top: 0;
+                padding: 0;
+            }
+            .cookie-consent-data-display .cookie-details-row {
+                display: flex;
+                padding: 1rem;
+                border-bottom: 1px solid #eee;
+                background: #fff;
+            }
+            .cookie-consent-data-display .cookie-details-row:last-child {
+                border-bottom: none;
+            }
+            .cookie-consent-data-display .cookie-name-col {
+                flex: 0 0 35%;
+                font-weight: 500;
+                padding-right: 1rem;
+            }
+            .cookie-consent-data-display .cookie-meta-col {
+                flex: 0 0 65%;
+            }
+            .cookie-consent-data-display .cookie-meta {
+                margin: 0 0 0.35rem;
+                font-size: 0.9em;
+            }
+            .cookie-consent-data-display .cookie-meta:last-child {
+                margin-bottom: 0;
+            }
+            .cookie-consent-data-display .cookie-meta strong {
+                display: inline-block;
+                min-width: 80px;
+                color: #666;
+            }
+            .cookie-consent-data-display .error-message {
+                color: #666;
+                text-align: center;
+            }
+            #cookie-consent-settings-button {
+                background-color: #2a2e64;
+                color: white;
+                border: none;
+                padding: 0.75rem 1.5rem;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: 500;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+            }
+            #cookie-consent-settings-button:hover {
+                background-color: #3a3e74;
+            }
+            @media (max-width: 600px) {
+                .cookie-consent-data-display .cookie-details-row {
+                    flex-direction: column;
+                }
+                .cookie-consent-data-display .cookie-name-col {
+                    flex: 0 0 100%;
+                    padding-right: 0;
+                    padding-bottom: 0.5rem;
+                    margin-bottom: 0.5rem;
+                    border-bottom: 1px solid #f5f5f5;
+                }
+                .cookie-consent-data-display .cookie-meta-col {
+                    flex: 0 0 100%;
+                }
+            }
         </style>';
 
-        // Settings for JavaScript templating
-        $necessary_title = esc_js($settings['necessary_title'] ?? 'Nødvendige');
-        $analytics_title = esc_js($settings['analytics_title'] ?? 'Analyse');
-        $functional_title = esc_js($settings['functional_title'] ?? 'Funksjonell');
-        $marketing_title = esc_js($settings['marketing_title'] ?? 'Markedsføring');
-        $consent_last_updated = esc_js($settings['consent_last_updated'] ?? 'Sist oppdatert:');
-        $consent_choices_heading = esc_js($settings['consent_choices_heading'] ?? 'Dine samtykkevalg');
-        $consent_status_accepted = esc_js($settings['consent_status_accepted'] ?? 'Godtatt');
-        $consent_status_declined = esc_js($settings['consent_status_declined'] ?? 'Avslått');
-        $active_cookies_heading = esc_js($settings['active_cookies_heading'] ?? 'Aktive informasjonskapsler:');
-        $no_cookies_message = esc_js($settings['no_cookies_message'] ?? 'Ingen informasjonskapsler funnet.');
-        $cookie_purpose_label = esc_js($settings['cookie_purpose_label'] ?? 'Formål:');
-        $cookie_expiry_label = esc_js($settings['cookie_expiry_label'] ?? 'Utløper:');
-        $error_message = esc_js(__('Error loading consent data. Please try again.', 'custom-cookie-consent'));
-
-        // Add JavaScript to fetch and display consent data - rewritten to avoid template literal issues
-        $output .= '<script>
-            (function() {
-                // Configuration
-                const config = {
-                    ajaxUrl: "' . esc_js(admin_url('admin-ajax.php')) . '",
-                    nonce: "' . esc_js($nonce) . '",
-                    action: "custom_cookie_get_consent",
-                    debug: ' . (defined('WP_DEBUG') && WP_DEBUG ? 'true' : 'false') . ',
-                    retryDelay: 1000,
-                    maxRetries: 3,
-                    strings: {
-                        necessary: "' . $necessary_title . '",
-                        analytics: "' . $analytics_title . '",
-                        functional: "' . $functional_title . '",
-                        marketing: "' . $marketing_title . '",
-                        lastUpdated: "' . $consent_last_updated . '",
-                        choicesHeading: "' . $consent_choices_heading . '",
-                        accepted: "' . $consent_status_accepted . '",
-                        declined: "' . $consent_status_declined . '",
-                        activeCookies: "' . $active_cookies_heading . '",
-                        noCookies: "' . $no_cookies_message . '",
-                        purpose: "' . $cookie_purpose_label . '",
-                        expiry: "' . $cookie_expiry_label . '",
-                        error: "' . $error_message . '"
-                    }
-                };
-                
-                // Debug logging - only logs to console when debug is enabled
-                function debug(message, data) {
-                    if (!config.debug) return;
-                    console.log("[Consent Data]", message, data || "");
-                }
-                
-                // Fetch consent data with retries
-                function fetchConsentData(retryCount = 0) {
-                    const container = document.getElementById("cookie-consent-data-container");
-                    const loading = document.getElementById("cookie-consent-data-loading");
-                    
-                    if (!container || !loading) {
-                        debug("Required DOM elements not found");
-                        return;
-                    }
-                    
-                    // Show loading
-                    loading.style.display = "block";
-                    container.style.display = "none";
-                    
-                    debug("Fetching consent data", { 
-                        attempt: retryCount + 1,
-                        url: config.ajaxUrl,
-                        nonce: config.nonce ? "Valid" : "Missing"
-                    });
-                    
-                    // Create form data
-                    const formData = new FormData();
-                    formData.append("action", config.action);
-                    formData.append("nonce", config.nonce);
-                    
-                    // Fetch data with proper error handling
-                    fetch(config.ajaxUrl, {
-                        method: "POST",
-                        credentials: "same-origin",
-                        body: formData
-                    })
-                    .then(response => {
-                        debug("Response status", response.status);
-                        
-                        if (!response.ok) {
-                            debug("Response not OK", {
-                                status: response.status,
-                                statusText: response.statusText
-                            });
-                            throw new Error("Network error: " + response.status + " " + response.statusText);
-                        }
-                        return response.json();
-                    })
-                    .then(response => {
-                        debug("Response received", response);
-                        
-                        if (response.success && response.data) {
-                            renderConsentData(response.data);
-                            loading.style.display = "none";
-                            container.style.display = "block";
-                        } else {
-                            debug("Invalid response format", response);
-                            throw new Error(response.data?.message || "Invalid response format");
-                        }
-                    })
-                    .catch(error => {
-                        debug("Error fetching consent data", error.message);
-                        
-                        if (retryCount < config.maxRetries) {
-                            debug("Retrying (" + (retryCount + 1) + "/" + config.maxRetries + ")...");
-                            setTimeout(() => fetchConsentData(retryCount + 1), config.retryDelay);
-                            return;
-                        }
-                        
-                        container.innerHTML = 
-                            "<p style=\"color: #666; text-align: center;\">" + 
-                            config.strings.error + 
-                            "</p>" +
-                            "<p style=\"color: #999; text-align: center; font-size: 0.9em;\">" +
-                            error.message +
-                            "</p>";
-                        loading.style.display = "none";
-                        container.style.display = "block";
-                    });
-                }
-                
-                // Function to render consent data
-                function renderConsentData(data) {
-                    const container = document.getElementById("cookie-consent-data-container");
-                    if (!container) {
-                        debug("Container not found");
-                        return;
-                    }
-                    
-                    debug("Rendering consent data", data);
-                    
-                    let html = "";
-                    
-                    // Add last updated time if available
-                    if (data.timestamp) {
-                        const date = new Date(data.timestamp * 1000);
-                        html += "<p style=\"color: #666; font-size: 0.9em;\">" + config.strings.lastUpdated + " " + date.toLocaleString() + "</p>";
-                    }
-                    
-                    // Show consent status
-                    html += "<h3 style=\"margin: 0 0 1rem; color: #333;\">" + config.strings.choicesHeading + "</h3>";
-                    html += "<div style=\"margin-bottom: 2rem;\">";
-                    
-                    // Display consent status for each category
-                    if (data.consent_status) {
-                        for (const category in data.consent_status) {
-                            if (Object.prototype.hasOwnProperty.call(data.consent_status, category)) {
-                                const status = data.consent_status[category];
-                                
-                                // Get category title
-                                let categoryDisplay = category;
-                                if (category === "necessary") {
-                                    categoryDisplay = config.strings.necessary;
-                                } else if (category === "analytics") {
-                                    categoryDisplay = config.strings.analytics;
-                                } else if (category === "functional") {
-                                    categoryDisplay = config.strings.functional;
-                                } else if (category === "marketing") {
-                                    categoryDisplay = config.strings.marketing;
-                                }
-                                
-                                const statusColor = status ? "#4C4CFF" : "#666";
-                                const statusText = status 
-                                    ? config.strings.accepted
-                                    : config.strings.declined;
-                                
-                                html += 
-                                    "<div style=\"display: flex; align-items: center; margin-bottom: 0.5rem;\">" +
-                                    "<span style=\"flex: 1; font-weight: 500;\">" + categoryDisplay + ":</span>" +
-                                    "<span style=\"color: " + statusColor + "; font-weight: 500;\">" + statusText + "</span>" +
-                                    "</div>";
-                            }
-                        }
-                    }
-                    html += "</div>";
-                    
-                    // Show active cookies
-                    if (data.cookies_present && data.cookies_present.length > 0) {
-                        html += "<h4 style=\"margin: 1.5rem 0 1rem; color: #333;\">" + config.strings.activeCookies + "</h4>";
-                        
-                        // Group cookies by category
-                        const cookiesByCategory = {};
-                        for (const cookie of data.cookies_present) {
-                            if (!cookiesByCategory[cookie.category]) {
-                                cookiesByCategory[cookie.category] = [];
-                            }
-                            cookiesByCategory[cookie.category].push(cookie);
-                        }
-                        
-                        // Display cookies by category
-                        for (const category in cookiesByCategory) {
-                            if (Object.prototype.hasOwnProperty.call(cookiesByCategory, category)) {
-                                const cookies = cookiesByCategory[category];
-                                if (cookies.length === 0) continue;
-                                
-                                // Get category title
-                                let categoryDisplay = category;
-                                if (category === "necessary") {
-                                    categoryDisplay = config.strings.necessary;
-                                } else if (category === "analytics") {
-                                    categoryDisplay = config.strings.analytics;
-                                } else if (category === "functional") {
-                                    categoryDisplay = config.strings.functional;
-                                } else if (category === "marketing") {
-                                    categoryDisplay = config.strings.marketing;
-                                }
-                                
-                                html += 
-                                    "<div style=\"margin-bottom: 1.5rem;\">" +
-                                    "<h5 style=\"margin: 1rem 0 0.5rem; color: #555;\">" + categoryDisplay + "</h5>" +
-                                    "<div style=\"border-left: 3px solid #4C4CFF; padding-left: 1rem;\">";
-                                
-                                for (const cookie of cookies) {
-                                    html += 
-                                        "<div style=\"margin-bottom: 1rem; padding: 0.75rem; background: #fff; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);\">" +
-                                        "<p style=\"margin: 0 0 0.5rem; font-weight: 500;\">" + (cookie.name || "Unknown") + "</p>" +
-                                        "<p style=\"margin: 0 0 0.25rem; font-size: 0.9em;\"><strong>" + config.strings.purpose + "</strong> " + (cookie.description || "Ikke spesifisert") + "</p>" +
-                                        "<p style=\"margin: 0; font-size: 0.9em;\"><strong>" + config.strings.expiry + "</strong> " + (cookie.expiry || "Ikke spesifisert") + "</p>" +
-                                        "</div>";
-                                }
-                                
-                                html += "</div></div>";
-                            }
-                        }
-                    } else {
-                        html += "<p style=\"margin: 1.5rem 0; color: #666;\">" + config.strings.noCookies + "</p>";
-                    }
-                    
-                    container.innerHTML = html;
-                }
-                
-                // Add event listener to refresh button
-                const refreshButton = document.getElementById("cookie-consent-refresh");
-                if (refreshButton) {
-                    refreshButton.addEventListener("click", function() {
-                        fetchConsentData();
-                    });
-                }
-                
-                // Add event listener for consent updated events
-                window.addEventListener("consentUpdated", function() {
-                    debug("Consent updated event received");
-                    setTimeout(function() {
-                        fetchConsentData();
-                    }, 500);
+        // JavaScript to fetch the latest consent data
+        $output .= <<<JAVASCRIPT
+<script>
+(function() {
+    // Configuration
+    const config = {
+        retryDelay: 1000,
+        maxRetries: 3,
+        strings: {
+            necessary: "{$necessary_title}",
+            analytics: "{$analytics_title}",
+            functional: "{$functional_title}",
+            marketing: "{$marketing_title}",
+            lastUpdated: "{$last_updated}",
+            choicesHeading: "{$consent_choices_heading}",
+            accepted: "{$consent_status_accepted}",
+            declined: "{$consent_status_declined}",
+            activeCookies: "{$active_cookies_heading}",
+            noCookies: "{$no_cookies_message}",
+            category: "{$cookie_category_label}",
+            purpose: "{$cookie_purpose_label}",
+            expiry: "{$cookie_expiry_label}",
+            error: "{$error_message}"
+        }
+    };
+    
+    // Always define ajaxurl for the front-end
+    var ajaxurl = document.getElementById('consent_data_ajaxurl').value;
+    
+    // Debug logging - only logs to console when debug is enabled
+    function debug(message, data) {
+        if (window.cookieConsentSettings?.debug) {
+            console.log("[Consent Data]", message, data || "");
+        }
+    }
+    
+    // Get the nonce from the hidden field
+    function getNonce() {
+        const nonceField = document.getElementById("consent_data_nonce");
+        return nonceField ? nonceField.value : "";
+    }
+    
+    // Fetch consent data with retries
+    function fetchConsentData(retryCount = 0) {
+        const container = document.getElementById("cookie-consent-data-container");
+        const loading = document.getElementById("cookie-consent-data-loading");
+        
+        if (!container || !loading) {
+            debug("Required DOM elements not found");
+            return;
+        }
+        
+        // Show loading
+        loading.style.display = "block";
+        container.style.display = "none";
+        
+        // Get the nonce
+        const nonce = getNonce();
+        
+        if (!ajaxurl) {
+            debug("AJAX URL is missing");
+            loading.innerHTML = '<p class="error-message">Error: AJAX URL missing</p>';
+            return;
+        }
+        
+        debug("Fetching consent data", { 
+            attempt: retryCount + 1,
+            url: ajaxurl,
+            nonce: nonce ? "Valid" : "Missing"
+        });
+        
+        // Add cache-busting parameter for CDN compatibility
+        const cacheBuster = new Date().getTime();
+        
+        // Fetch data with proper error handling
+        fetch(ajaxurl + '?_=' + cacheBuster, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                action: "custom_cookie_get_consent",
+                security: nonce
+            })
+        })
+        .then(response => {
+            debug("Response status", response.status);
+            
+            if (!response.ok) {
+                debug("Response not OK", {
+                    status: response.status,
+                    statusText: response.statusText
                 });
+                throw new Error("Network error: " + response.status + " " + response.statusText);
+            }
+            return response.json();
+        })
+        .then(response => {
+            debug("Response received", response);
+            
+            if (response.success && response.data) {
+                renderConsentData(response.data);
+                loading.style.display = "none";
+                container.style.display = "block";
+            } else {
+                debug("Invalid response format", response);
+                throw new Error(response.data?.message || "Invalid response format");
+            }
+        })
+        .catch(error => {
+            debug("Error fetching consent data", error.message);
+            
+            if (retryCount < config.maxRetries) {
+                debug("Retrying (" + (retryCount + 1) + "/" + config.maxRetries + ")...");
+                setTimeout(() => fetchConsentData(retryCount + 1), config.retryDelay);
+                return;
+            }
+            
+            container.innerHTML = 
+                "<p class=\"error-message\">" + 
+                config.strings.error + 
+                "</p>" +
+                "<p class=\"error-details\">" +
+                error.message +
+                "</p>";
+            loading.style.display = "none";
+            container.style.display = "block";
+        });
+    }
+    
+    // Function to render consent data
+    function renderConsentData(data) {
+        const container = document.getElementById("cookie-consent-data-container");
+        if (!container) {
+            debug("Container not found");
+            return;
+        }
+        
+        debug("Rendering consent data", data);
+        
+        let html = "";
+        
+        // Add last updated time if available
+        if (data.timestamp) {
+            const date = new Date(data.timestamp * 1000);
+            const formattedDate = date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            html += "<p class=\"timestamp\">" + config.strings.lastUpdated + ": " + formattedDate + "</p>";
+        }
+        
+        // Show consent status
+        html += "<h3>" + config.strings.choicesHeading + "</h3>";
+        html += "<div style=\"margin-bottom: 2rem;\">";
+        
+        // Display consent status for each category
+        if (data.consent_status) {
+            for (const category in data.consent_status) {
+                if (Object.prototype.hasOwnProperty.call(data.consent_status, category)) {
+                    const status = !!data.consent_status[category]; // Force boolean
+                    
+                    // Get category title
+                    let categoryDisplay = category;
+                    if (category === "necessary") {
+                        categoryDisplay = config.strings.necessary;
+                    } else if (category === "analytics") {
+                        categoryDisplay = config.strings.analytics;
+                    } else if (category === "functional") {
+                        categoryDisplay = config.strings.functional;
+                    } else if (category === "marketing") {
+                        categoryDisplay = config.strings.marketing;
+                    }
+                    
+                    const statusClass = status ? "status-accepted" : "status-declined";
+                    const statusText = status 
+                        ? config.strings.accepted
+                        : config.strings.declined;
+                    
+                    html += 
+                        "<div class=\"consent-category\">" +
+                        "<span class=\"category-name\">" + categoryDisplay + ":</span>" +
+                        "<span class=\"" + statusClass + "\">" + statusText + "</span>" +
+                        "</div>";
+                }
+            }
+        }
+        html += "</div>";
+        
+        // Show active cookies
+        if (data.cookies_present && data.cookies_present.length > 0) {
+            html += "<h4>" + config.strings.activeCookies + ":</h4>";
+            
+            // Group cookies by category
+            const cookiesByCategory = {};
+            for (const cookie of data.cookies_present) {
+                if (!cookiesByCategory[cookie.category]) {
+                    cookiesByCategory[cookie.category] = [];
+                }
+                cookiesByCategory[cookie.category].push(cookie);
+            }
+            
+            // Display cookies by category
+            for (const category in cookiesByCategory) {
+                if (Object.prototype.hasOwnProperty.call(cookiesByCategory, category)) {
+                    const cookies = cookiesByCategory[category];
+                    if (cookies.length === 0) continue;
+                    
+                    // Get category title
+                    let categoryDisplay = category;
+                    if (category === "necessary") {
+                        categoryDisplay = config.strings.necessary;
+                    } else if (category === "analytics") {
+                        categoryDisplay = config.strings.analytics;
+                    } else if (category === "functional") {
+                        categoryDisplay = config.strings.functional;
+                    } else if (category === "marketing") {
+                        categoryDisplay = config.strings.marketing;
+                    }
+                    
+                    html += "<div class=\"cookie-category-wrap\">";
+                    html += "<h5 class=\"cookie-category-title\">" + categoryDisplay + "</h5>";
+                    html += "<div class=\"cookie-list\">";
+                    
+                    for (const cookie of cookies) {
+                        html += 
+                            "<div class=\"cookie-details-row\">" +
+                            "<div class=\"cookie-name-col\">" + (cookie.name || "Unknown") + "</div>" +
+                            "<div class=\"cookie-meta-col\">" +
+                            "<p class=\"cookie-meta\"><strong>" + config.strings.purpose + ":</strong> " + (cookie.description || "Not specified") + "</p>" +
+                            "<p class=\"cookie-meta\"><strong>" + config.strings.expiry + ":</strong> " + (cookie.expiry || "Not specified") + "</p>" +
+                            "</div>" +
+                            "</div>";
+                    }
+                    
+                    html += "</div></div>";
+                }
+            }
+        } else {
+            html += "<p style=\"margin: 1.5rem 0; color: #666;\">" + config.strings.noCookies + "</p>";
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    // Format date to local string
+    function formatDate(timestamp) {
+        if (!timestamp) return '';
+        
+        // Check if timestamp is a MySQL date string
+        if (typeof timestamp === 'string' && timestamp.includes('-')) {
+            return new Date(timestamp).toLocaleString();
+        }
+        
+        // Handle UNIX timestamp (seconds)
+        if (typeof timestamp === 'number' || !isNaN(parseInt(timestamp))) {
+            const ts = parseInt(timestamp);
+            // Convert seconds to milliseconds if needed
+            const date = new Date(ts < 10000000000 ? ts * 1000 : ts);
+            return date.toLocaleString();
+        }
+        
+        return timestamp;
+    }
+
+    // Add event listener to the settings button
+    const settingsButton = document.getElementById("cookie-consent-settings-button");
+    if (settingsButton) {
+        settingsButton.addEventListener("click", function(e) {
+            e.preventDefault();
+            
+            // Try multiple approaches to open the consent settings
+            try {
+                // Approach 1: Use the global consentManager object if available
+                if (window.consentManager && typeof window.consentManager.showConsentBanner === 'function') {
+                    // Preferred approach
+                    window.consentManager.showConsentBanner();
+                    return;
+                }
                 
-                // Initial fetch - use a small delay to ensure DOM is ready
-                setTimeout(function() {
-                    fetchConsentData();
-                }, 100);
-            })();
-        </script>';
+                // Approach 2: Use the constructor if available but instance not created yet
+                if (typeof window.ConsentManager === 'function' && !window.consentManager) {
+                    window.consentManager = new window.ConsentManager();
+                    if (typeof window.consentManager.showConsentBanner === 'function') {
+                        window.consentManager.showConsentBanner();
+                        return;
+                    }
+                }
+                
+                // Approach 3: Dispatch a custom event that the banner listens for
+                const event = new CustomEvent('showCookieBanner');
+                document.dispatchEvent(event);
+                
+                // Approach 4: Find and click an existing cookie settings link
+                const existingLinks = document.querySelectorAll('.cookie-settings-trigger');
+                if (existingLinks && existingLinks.length > 0) {
+                    existingLinks[0].click();
+                    return;
+                }
+                
+                // Approach 5: Reload the page to show the banner
+                // This is a fallback if nothing else works
+                document.cookie = "devora_cookie_consent=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.reload();
+            } catch (err) {
+                console.error("Error showing cookie banner:", err);
+                
+                // Final fallback - reload page
+                document.cookie = "devora_cookie_consent=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.reload();
+            }
+        });
+    }
+    
+    // Add event listener for consent updated events
+    document.addEventListener("consentUpdated", function(event) {
+        debug("Consent updated event received", event.detail);
+        
+        // Add a delay to allow storage to be updated
+        setTimeout(function() {
+            fetchConsentData();
+            
+            // Reload page after consent update (improves compatibility)
+            if (event.detail && event.detail.reload !== false) {
+                window.location.reload();
+            }
+        }, 1000);
+    });
+    
+    // Initial fetch - use a small delay to ensure DOM is ready
+    setTimeout(function() {
+        fetchConsentData();
+    }, 500);
+})();
+</script>
+JAVASCRIPT;
 
         $output .= '</div>';
 
         return $output;
+    }
+
+    /**
+     * Get the admin-ajax.php URL
+     *
+     * @return string
+     */
+    private function get_admin_ajax_url(): string
+    {
+        return admin_url('admin-ajax.php');
     }
 
     /**
@@ -2271,51 +2690,41 @@ class CookieConsent
     /**
      * AJAX handler for getting consent data
      */
-    public function ajax_get_consent_data(): void
+    public function ajax_get_consent_data()
     {
         try {
+            // Check for nonce
+            if (!isset($_POST['security'])) {
+                $this->debug_log("AJAX get_consent_data missing security token");
+                throw new Exception("Missing security token");
+            }
+
             // Verify nonce
-            if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
-                // Log the nonce verification failure
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('Cookie Consent Error: Nonce verification failed');
-                    if (isset($_POST['nonce'])) {
-                        error_log('Cookie Consent Error: Invalid nonce: ' . sanitize_text_field(wp_unslash($_POST['nonce'])));
-                    } else {
-                        error_log('Cookie Consent Error: Nonce not provided');
-                    }
-                }
-                throw new Exception('Invalid security token. Please refresh the page and try again.');
+            if (!wp_verify_nonce($_POST['security'], 'consent_data_nonce')) {
+                $this->debug_log("AJAX get_consent_data invalid security token");
+                throw new Exception("Invalid security token");
             }
 
-            // Get consent data with error handling
-            $consent_data = $this->get_user_consent_data();
+            // Get all consent data including detected cookies
+            $consent_data = $this->get_user_consent_data(true);
 
-            if (empty($consent_data)) {
-                throw new Exception('No consent data could be retrieved');
-            }
+            // Add current timestamp
+            $consent_data['timestamp'] = current_time('timestamp');
 
-            // Add timestamp for display
-            $consent_data['timestamp'] = time();
+            // Log some debug info
+            $this->debug_log("Consent data retrieved for shortcode: " . json_encode([
+                'consent_status' => $consent_data['consent_status'] ?? null,
+                'cookie_count' => count($consent_data['cookies_present'] ?? [])
+            ]));
 
-            // Log successful retrieval
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Cookie Consent: Successfully retrieved consent data: ' . json_encode($consent_data));
-            }
-
-            // Send the response with success flag and data
+            // Return the data
             wp_send_json_success($consent_data);
-            return;
         } catch (Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('Cookie Consent Error: ' . $e->getMessage());
-            }
-            wp_send_json_error([
-                'message' => __('Error retrieving consent data', 'custom-cookie-consent'),
-                'error' => WP_DEBUG ? $e->getMessage() : null
-            ]);
-            return;
+            $this->debug_log("AJAX get_consent_data error: " . $e->getMessage());
+            wp_send_json_error(['message' => $e->getMessage()]);
         }
+
+        wp_die();
     }
 
     /**
@@ -2562,6 +2971,521 @@ class CookieConsent
             })();
         </script>
     <?php
+    }
+
+    /**
+     * Auto-categorize cookies based on name patterns
+     *
+     * @param string $cookie_name Name of the cookie
+     * @return string Category (necessary, analytics, functional, marketing)
+     */
+    private function categorize_cookie(string $cookie_name): string
+    {
+        // Convert to lowercase for case-insensitive matching
+        $name = strtolower($cookie_name);
+
+        // Common analytics cookies
+        $analytics_patterns = [
+            '_ga',
+            '_gid',
+            '_gat', // Google Analytics
+            'statcounter',
+            'sc_is_visitor_unique', // StatCounter
+            'matomo',
+            'piwik',
+            '_pk_', // Matomo
+            'amplitude',
+            'mixpanel', // Other analytics
+            'plausible',
+            'ahoy_',
+            'ahoy_visitor', // Other analytics
+            'countly',
+            'hotjar',
+            '_hjSession',
+            '_hj', // Hotjar
+            'optimizely',
+            'fullstory',
+            '_fs', // Testing/Analytics
+            '_clck',
+            '_clsk',
+            'clarity', // Microsoft Clarity
+            'yt-player-', // YouTube
+        ];
+
+        // Common marketing cookies
+        $marketing_patterns = [
+            'fbp',
+            '_fbp', // Facebook
+            'personalization_id', // Twitter
+            'lidc',
+            'bcookie',
+            'bscookie', // LinkedIn
+            'hubspotutk',
+            '__hssc',
+            '__hssrc',
+            '__hstc', // HubSpot
+            'adroll',
+            'criteo',
+            'adform', // Ad networks
+            'doubleclick',
+            '__gads',
+            '_gcl_', // Google Ads
+            'pinterest_',
+            '_pin_', // Pinterest
+            'MUID',
+            'MC1', // Bing
+            'IDE',
+            'id', // DoubleClick
+            'anj',
+            'uids',
+            'uuid2', // AppNexus
+            'tuuid',
+            'tusn',
+            'tuid', // Improve Digital
+            'c',
+            'cid',
+            'cto_', // Criteo
+            'fr',
+            'tr', // Facebook retargeting
+            'user_id',
+            'uid',
+            'ads', // Various ad networks
+            'VISITOR_INFO1_LIVE', // YouTube cookie
+            'CONSENT', // Google consent
+            'NID',
+            'DV', // Google
+            'taboola_', // Taboola
+            'outbrain_', // Outbrain
+            'intercom', // Intercom
+            'drip_', // Drip
+            'pardot', // Pardot
+            'eloqua', // Eloqua
+            'drift', // Drift
+            'zendesk', // Zendesk
+            'freshchat', // Freshchat
+            'tawk', // Tawk
+        ];
+
+        // Common functional cookies
+        $functional_patterns = [
+            'wordpress_logged_in_',
+            'wordpress_sec_', // WordPress auth
+            'wp-settings-',
+            'wp_', // WordPress settings
+            'comment_',
+            'comment-', // Comments
+            'sessionid',
+            'sid',
+            'PHPSESSID', // Session IDs
+            'token',
+            'auth',
+            'logged_in', // Auth tokens
+            'lang',
+            'language',
+            'locale',
+            'country', // Language/locale
+            'timezone',
+            'currency', // User preferences
+            'font',
+            'text_size', // Display preferences
+            'recently_viewed',
+            'recently_searched', // User history
+            'shopping_cart',
+            'cart_', // Shopping cart
+            'wishlist',
+            'favorites', // User saved items
+            'cf_use_it',
+            'cf_', // Contact Form
+            'wfwaf-',
+            'wordfence', // Wordfence
+            'akm_mobile', // Mobile detection
+            'gdpr',
+            'ccpa', // Consent related
+            'cookie_notice', // Cookie notice
+            'woocommerce_',
+            'wp_woocommerce_', // WooCommerce
+            'jetpack', // Jetpack
+            'elementor', // Elementor
+            'et_', // Divi theme
+            'cerber',
+            'sucuri',
+            'litespeed', // Security plugins
+            'ninja_forms_',
+            'gform_',
+            'formidable', // Forms
+            'wpforms',
+            'fluentform', // Forms
+            'theme_',
+            'template_', // Theme settings
+            'popup',
+            'modal',
+            'notification', // UI elements
+            'recaptcha',
+            'captcha', // CAPTCHA
+        ];
+
+        // Necessary cookies (default whitelist)
+        $necessary_patterns = [
+            'wp-settings-time', // WordPress core
+            'devora_cookie_consent', // Our own cookie consent
+            'cookie_consent',
+            'cookie-consent', // Generic consent cookies
+            'wordpress_test_cookie', // WP test cookie
+            'wp_lang', // WordPress language
+            'wc_', // WooCommerce
+            'wordpress_', // WordPress session
+            'gdpr_',
+            'consent', // GDPR
+            'cb-enabled', // Cookie banner
+            'CookieConsent', // Generic consent
+            'euconsent', // IAB consent
+            'cookielawinfo-', // GDPR cookie consent
+            'complianz', // Complianz 
+            'borlabs-cookie', // Borlabs cookie
+            'cc_cookie', // Cookie control
+            'moove_gdpr', // GDPR Cookie Compliance
+            'cookieconsent_', // Cookie consent
+            'viewed_cookie_policy', // Cookie policy 
+            'wordpress_sec', // WordPress security
+            'wp-', // WordPress prefix
+            'xf_', // XenForo 
+            'csrf',
+            'csrftoken', // CSRF protection
+            'cf_clearance', // Cloudflare
+            'CloudFront', // AWS CloudFront
+            'AWSELB',
+            'AWSALB', // AWS ELB
+            'ARRAffinity', // Azure
+            'JSESSIONID', // Java Session
+            'SSESS', // Generic session
+            'X-Mapping', // Load balancer
+        ];
+
+        // Check if the cookie name matches any pattern
+        foreach ($analytics_patterns as $pattern) {
+            if (strpos($name, $pattern) !== false) {
+                return 'analytics';
+            }
+        }
+
+        foreach ($marketing_patterns as $pattern) {
+            if (strpos($name, $pattern) !== false) {
+                return 'marketing';
+            }
+        }
+
+        foreach ($functional_patterns as $pattern) {
+            if (strpos($name, $pattern) !== false) {
+                return 'functional';
+            }
+        }
+
+        foreach ($necessary_patterns as $pattern) {
+            if (strpos($name, $pattern) !== false) {
+                return 'necessary';
+            }
+        }
+
+        // If no pattern matches, return uncategorized
+        return 'uncategorized';
+    }
+
+    /**
+     * AJAX handler for scanning cookies
+     */
+    public function ajax_scan_cookies(): void
+    {
+        check_ajax_referer('cookie_management', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('You do not have permission to scan cookies.', 'custom-cookie-consent')]);
+            return;
+        }
+
+        // Get all cookies from browser
+        $all_cookies = $this->get_all_browser_cookies();
+
+        // Get existing detected cookies
+        $detected_cookies = get_option('custom_cookie_detected', array());
+
+        // Array to store new cookies
+        $new_cookies = array();
+
+        // Process each cookie
+        foreach ($all_cookies as $name => $value) {
+            // Skip if cookie is already tracked
+            $found = false;
+            foreach ($detected_cookies as $cookie) {
+                if ($cookie['name'] === $name) {
+                    $found = true;
+                    break;
+                }
+            }
+
+            if (!$found) {
+                // Auto-categorize the cookie based on name patterns
+                $category = $this->categorize_cookie($name);
+                $status = $category !== 'uncategorized' ? 'categorized' : 'uncategorized';
+
+                // Add the new cookie
+                $new_cookies[] = array(
+                    'name' => $name,
+                    'category' => $category,
+                    'status' => $status,
+                    'detected' => current_time('mysql'),
+                    'domain' => $_SERVER['HTTP_HOST'] ?? '',
+                    'description' => $this->get_cookie_description($name, $category),
+                    'source' => $this->detect_cookie_source($name),
+                );
+            }
+        }
+
+        // Add new cookies to detected cookies
+        if (!empty($new_cookies)) {
+            $detected_cookies = array_merge($detected_cookies, $new_cookies);
+            update_option('custom_cookie_detected', $detected_cookies);
+        }
+
+        // Return all cookies (including previously detected ones)
+        wp_send_json_success([
+            'cookies' => $detected_cookies,
+            'new_count' => count($new_cookies)
+        ]);
+    }
+
+    /**
+     * Get a generic description for a cookie based on its name and category
+     *
+     * @param string $name Cookie name
+     * @param string $category Cookie category
+     * @return string Cookie description
+     */
+    private function get_cookie_description(string $name, string $category): string
+    {
+        $name_lower = strtolower($name);
+
+        // Google Analytics cookies
+        if (strpos($name_lower, '_ga') === 0) {
+            return __('Google Analytics cookie used to distinguish users.', 'custom-cookie-consent');
+        }
+
+        // HubSpot cookies
+        if (strpos($name_lower, '__hs') === 0 || strpos($name_lower, 'hubspot') !== false) {
+            return __('HubSpot cookie used for marketing analytics.', 'custom-cookie-consent');
+        }
+
+        // WordPress cookies
+        if (strpos($name_lower, 'wordpress') === 0 || strpos($name_lower, 'wp_') === 0) {
+            return __('WordPress cookie used for site functionality.', 'custom-cookie-consent');
+        }
+
+        // Session cookies
+        if (strpos($name_lower, 'sess') !== false || strpos($name_lower, 'sid') !== false) {
+            return __('Session cookie used to maintain user session.', 'custom-cookie-consent');
+        }
+
+        // Generic descriptions based on category
+        switch ($category) {
+            case 'necessary':
+                return __('Technical cookie necessary for the site to function.', 'custom-cookie-consent');
+            case 'analytics':
+                return __('Analytics cookie used to measure site usage.', 'custom-cookie-consent');
+            case 'functional':
+                return __('Functional cookie used to improve user experience.', 'custom-cookie-consent');
+            case 'marketing':
+                return __('Marketing cookie used for advertising purposes.', 'custom-cookie-consent');
+            default:
+                return __('Cookie with unspecified purpose.', 'custom-cookie-consent');
+        }
+    }
+
+    /**
+     * Attempt to detect the source of a cookie
+     *
+     * @param string $name Cookie name
+     * @return string Cookie source
+     */
+    private function detect_cookie_source(string $name): string
+    {
+        $name_lower = strtolower($name);
+
+        if (strpos($name_lower, '_ga') === 0 || strpos($name_lower, 'google') !== false) {
+            return 'Google Analytics';
+        }
+
+        if (strpos($name_lower, 'hubspot') !== false || strpos($name_lower, '__hs') === 0) {
+            return 'HubSpot';
+        }
+
+        if (strpos($name_lower, 'fb') === 0 || strpos($name_lower, 'facebook') !== false) {
+            return 'Facebook';
+        }
+
+        if (strpos($name_lower, 'wordpress') !== false || strpos($name_lower, 'wp_') === 0) {
+            return 'WordPress';
+        }
+
+        if (strpos($name_lower, 'devora') !== false) {
+            return 'Devora';
+        }
+
+        // Default to site domain
+        return $_SERVER['HTTP_HOST'] ?? 'Unknown';
+    }
+
+    /**
+     * Enqueue scripts and styles for frontend
+     */
+    public function enqueue_scripts(): void
+    {
+        // Don't load scripts/styles in admin
+        if (is_admin()) {
+            return;
+        }
+
+        // Get settings
+        $settings = get_option('custom_cookie_settings', []);
+
+        // Force a unique version timestamp to avoid caching issues
+        $version = CUSTOM_COOKIE_VERSION . '.' . time();
+
+        // Enqueue styles
+        wp_enqueue_style(
+            'custom-cookie-consent',
+            plugin_dir_url(__FILE__) . 'css/cookie-consent.css',
+            [],
+            $version
+        );
+
+        // Register banner template script first (it must be loaded before consent manager)
+        wp_register_script(
+            'custom-cookie-banner-template',
+            plugin_dir_url(__FILE__) . 'js/banner-template.js',
+            [],
+            $version,
+            true
+        );
+
+        // Register and enqueue individual scripts with explicit dependencies
+        // Dynamic rules (can be loaded separately)
+        wp_register_script(
+            'custom-cookie-rules',
+            plugin_dir_url(__FILE__) . 'js/dynamic-enforcer-rules.js',
+            [], // No dependencies
+            $version,
+            true
+        );
+
+        // Main consent manager script (depends on banner template)
+        if (!wp_script_is('custom-cookie-consent', 'registered')) {
+            wp_register_script(
+                'custom-cookie-consent',
+                plugin_dir_url(__FILE__) . 'js/consent-manager.js',
+                ['custom-cookie-banner-template'], // Depends on the banner template
+                $version,
+                true
+            );
+        }
+
+        // Enqueue consent manager (this is the main script)
+        wp_enqueue_script('custom-cookie-consent');
+
+        // Now enqueue the rules (before enforcer)
+        wp_enqueue_script('custom-cookie-rules');
+
+        // Enqueue cookie enforcer (depends on consent manager and rules)
+        wp_enqueue_script(
+            'custom-cookie-enforcer',
+            plugin_dir_url(__FILE__) . 'js/cookie-enforcer.js',
+            ['custom-cookie-consent', 'custom-cookie-rules'],
+            $version,
+            true
+        );
+
+        // Add localization for JavaScript
+        wp_localize_script('custom-cookie-consent', '_devoraCookieL10n', [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('cookie_management'),
+            'save' => __('Save Preferences', 'custom-cookie-consent'),
+            'accept_all' => __('Accept All', 'custom-cookie-consent'),
+            'decline_all' => __('Decline Optional', 'custom-cookie-consent'),
+            'banner_title' => isset($settings['banner_title']) ? $settings['banner_title'] : __('We use cookies', 'custom-cookie-consent'),
+            'banner_description' => isset($settings['banner_description']) ? $settings['banner_description'] : __('This website uses cookies to improve your experience.', 'custom-cookie-consent'),
+            'preference_title' => isset($settings['preference_title']) ? $settings['preference_title'] : __('Cookie Preferences', 'custom-cookie-consent'),
+            'necessary_title' => isset($settings['necessary_title']) ? $settings['necessary_title'] : __('Necessary', 'custom-cookie-consent'),
+            'necessary_description' => isset($settings['necessary_description']) ? $settings['necessary_description'] : __('Necessary cookies help make a website usable by enabling basic functions like page navigation and access to secure areas of the website. The website cannot function properly without these cookies.', 'custom-cookie-consent'),
+            'analytics_title' => isset($settings['analytics_title']) ? $settings['analytics_title'] : __('Analytics', 'custom-cookie-consent'),
+            'analytics_description' => isset($settings['analytics_description']) ? $settings['analytics_description'] : __('Analytics cookies help website owners understand how visitors interact with websites by collecting and reporting information anonymously.', 'custom-cookie-consent'),
+            'functional_title' => isset($settings['functional_title']) ? $settings['functional_title'] : __('Functional', 'custom-cookie-consent'),
+            'functional_description' => isset($settings['functional_description']) ? $settings['functional_description'] : __('Functional cookies enable the website to provide enhanced functionality and personalization. They may be set by the website or by third party providers whose services have been added to the website.', 'custom-cookie-consent'),
+            'marketing_title' => isset($settings['marketing_title']) ? $settings['marketing_title'] : __('Marketing', 'custom-cookie-consent'),
+            'marketing_description' => isset($settings['marketing_description']) ? $settings['marketing_description'] : __('Marketing cookies are used to track visitors across websites. The intention is to display ads that are relevant and engaging for the individual user and thereby more valuable for publishers and third party advertisers.', 'custom-cookie-consent'),
+            'more_info' => isset($settings['more_info']) ? $settings['more_info'] : __('More information', 'custom-cookie-consent'),
+            'privacy_policy' => isset($settings['privacy_policy']) ? $settings['privacy_policy'] : __('Privacy Policy', 'custom-cookie-consent'),
+            'privacy_policy_url' => isset($settings['privacy_policy_url']) ? $settings['privacy_policy_url'] : '',
+            'service_notice' => isset($settings['service_notice']) ? $settings['service_notice'] : __('This content may collect data from third party services.', 'custom-cookie-consent'),
+            'service_button' => isset($settings['service_button']) ? $settings['service_button'] : __('Accept', 'custom-cookie-consent'),
+            'reload_after_save' => true, // Force page reload after consent is saved
+            'version' => $version,
+            'debug' => defined('WP_DEBUG') && WP_DEBUG
+        ]);
+
+        // Add cookie consent settings 
+        $settings_json = wp_json_encode([
+            'banner_position' => $settings['position'] ?? 'bottom',
+            'layout_type' => $settings['layout_type'] ?? 'block',
+            'color_primary' => $settings['color_primary'] ?? '#2a2e64',
+            'color_secondary' => $settings['color_secondary'] ?? '#ffffff',
+            'color_banner_bg' => $settings['color_banner_bg'] ?? '#ffffff',
+            'color_banner_text' => $settings['color_banner_text'] ?? '#333333',
+            'auto_accept' => $settings['auto_accept'] ?? 'no',
+            'auto_accept_days' => $settings['auto_accept_days'] ?? '30',
+            'consent_expiration' => $settings['consent_expiration'] ?? '365',
+            'reload_after_save' => true, // Force page reload after consent is saved 
+            'privacy_policy_url' => $settings['privacy_policy_url'] ?? '',
+            'categories' => [
+                'necessary' => true, // Always enabled
+                'analytics' => $settings['enable_analytics'] ?? 'yes',
+                'functional' => $settings['enable_functional'] ?? 'yes',
+                'marketing' => $settings['enable_marketing'] ?? 'yes',
+            ],
+            'debug' => defined('WP_DEBUG') && WP_DEBUG,
+        ]);
+
+        wp_add_inline_script(
+            'custom-cookie-consent',
+            'window.cookieConsentSettings = ' . $settings_json . ';',
+            'before'
+        );
+
+        // Define ajaxurl if it's not already defined (for front-end)
+        wp_add_inline_script(
+            'custom-cookie-consent',
+            'if (typeof ajaxurl === "undefined") { var ajaxurl = "' . esc_js(admin_url('admin-ajax.php')) . '"; }',
+            'before'
+        );
+
+        // Add a unique cache-busting parameter to dynamically generated scripts
+        wp_add_inline_script(
+            'custom-cookie-consent',
+            'window.cookieConsentCacheBuster = "' . esc_js($version) . '";',
+            'before'
+        );
+
+        // Add initialization script to ensure consentManager is only created once
+        wp_add_inline_script(
+            'custom-cookie-enforcer',
+            '
+            // Initialize ConsentManager only once after all scripts are loaded
+            document.addEventListener("DOMContentLoaded", function() {
+                // Check if consentManager already exists in global scope
+                if (!window.consentManager && typeof ConsentManager === "function") {
+                    window.consentManager = new ConsentManager();
+                }
+            });
+            ',
+            'after'
+        );
     }
 }
 
