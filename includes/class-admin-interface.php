@@ -270,7 +270,7 @@ class AdminInterface
         }
 
         // Get and sanitize parameters
-        $cookie_name = isset($_POST['cookie']) ? sanitize_text_field(wp_unslash($_POST['cookie'])) : '';
+        $cookie_name = isset($_POST['cookie_name']) ? sanitize_text_field(wp_unslash($_POST['cookie_name'])) : '';
         $category = isset($_POST['category']) ? sanitize_text_field(wp_unslash($_POST['category'])) : '';
 
         if (empty($cookie_name) || empty($category)) {
