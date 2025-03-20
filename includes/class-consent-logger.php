@@ -153,7 +153,7 @@ class ConsentLogger
         // Get the consent data
         $consent_data = null;
         if (isset($_POST['consent_data'])) {
-            $consent_data = json_decode(wp_unslash($_POST['consent_data']), true);
+            $consent_data = json_decode(wp_unslash(sanitize_text_field($_POST['consent_data'])), true);
         }
 
         if (! $consent_data || ! isset($consent_data['categories'])) {
@@ -286,8 +286,12 @@ class ConsentLogger
             );
         }
 
-        // Define the date range based on period
-        $date_condition = '';
+        // Define the date range based on period - using secure approach with whitelisted values
+        $date_condition = '1=1'; // Default safe condition
+        $valid_periods = ['day', 'week', 'month', 'year', 'all'];
+        $period = in_array($period, $valid_periods, true) ? $period : 'month';
+
+        // Safe SQL construction using whitelisted values
         switch ($period) {
             case 'day':
                 $date_condition = "consent_timestamp >= DATE_SUB(NOW(), INTERVAL 1 DAY)";
@@ -307,24 +311,32 @@ class ConsentLogger
                 break;
         }
 
-        // Get total records
-        $total_logs = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_name} WHERE {$date_condition}");
+        // Use esc_sql to sanitize table name
+        $table_name = esc_sql($this->table_name);
 
-        // Get consent counts by category
-        $necessary_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_name} WHERE {$date_condition} AND consent_categories LIKE '%necessary%'");
-        $analytics_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_name} WHERE {$date_condition} AND consent_categories LIKE '%analytics%'");
-        $functional_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_name} WHERE {$date_condition} AND consent_categories LIKE '%functional%'");
-        $marketing_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table_name} WHERE {$date_condition} AND consent_categories LIKE '%marketing%'");
+        // Get total records - safely construct query
+        $sql = "SELECT COUNT(*) FROM {$table_name} WHERE {$date_condition}";
+        $total_logs = (int) $wpdb->get_var($sql);
 
-        // Get consent trend (logs per day for the last 30 days)
-        $trend_data = $wpdb->get_results(
-            "SELECT DATE(consent_timestamp) as date, COUNT(*) as count
-			 FROM {$this->table_name}
-			 WHERE consent_timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-			 GROUP BY DATE(consent_timestamp)
-			 ORDER BY date ASC",
-            ARRAY_A
-        );
+        // Get consent counts by category - safely construct queries
+        $necessary_sql = "SELECT COUNT(*) FROM {$table_name} WHERE {$date_condition} AND consent_categories LIKE '%necessary%'";
+        $analytics_sql = "SELECT COUNT(*) FROM {$table_name} WHERE {$date_condition} AND consent_categories LIKE '%analytics%'";
+        $functional_sql = "SELECT COUNT(*) FROM {$table_name} WHERE {$date_condition} AND consent_categories LIKE '%functional%'";
+        $marketing_sql = "SELECT COUNT(*) FROM {$table_name} WHERE {$date_condition} AND consent_categories LIKE '%marketing%'";
+
+        $necessary_count = (int) $wpdb->get_var($necessary_sql);
+        $analytics_count = (int) $wpdb->get_var($analytics_sql);
+        $functional_count = (int) $wpdb->get_var($functional_sql);
+        $marketing_count = (int) $wpdb->get_var($marketing_sql);
+
+        // Get consent trend (logs per day for the last 30 days) - safely construct query
+        $trend_sql = "SELECT DATE(consent_timestamp) as date, COUNT(*) as count
+            FROM {$table_name}
+            WHERE consent_timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            GROUP BY DATE(consent_timestamp)
+            ORDER BY date ASC";
+
+        $trend_data = $wpdb->get_results($trend_sql, ARRAY_A);
 
         // Ensure data for all 30 days (even if no logs)
         $trend = array();
@@ -486,9 +498,12 @@ class ConsentLogger
                 break;
         }
 
+        // Escape table name for security
+        $table_name = esc_sql($this->table_name);
+
         // Get logs
         $logs = $wpdb->get_results(
-            "SELECT * FROM {$this->table_name} {$where_clause} ORDER BY consent_timestamp DESC",
+            "SELECT * FROM {$table_name} {$where_clause} ORDER BY consent_timestamp DESC",
             ARRAY_A
         );
 
@@ -509,5 +524,26 @@ class ConsentLogger
         }
 
         return $csv;
+    }
+
+    /**
+     * Drop the database table when plugin is uninstalled
+     * 
+     * @return void
+     */
+    public function drop_database_table(): void
+    {
+        global $wpdb;
+
+        // Skip if table doesn't exist
+        if (!$this->table_exists()) {
+            return;
+        }
+
+        // Use esc_sql to sanitize table name
+        $table_name = esc_sql($this->table_name);
+
+        // Use a safe DROP query
+        $wpdb->query("DROP TABLE IF EXISTS {$table_name}");
     }
 }

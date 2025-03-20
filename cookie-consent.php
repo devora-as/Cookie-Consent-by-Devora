@@ -27,14 +27,17 @@
  * GNU General Public License for more details.
  */
 
-namespace CustomCookieConsent;
-
-use \Exception;
-
 // If this file is called directly, abort.
 if (! defined('WPINC')) {
     die;
 }
+
+// Register uninstall hook
+register_uninstall_hook(__FILE__, 'CustomCookieConsent\\CookieConsent::uninstall');
+
+namespace CustomCookieConsent;
+
+use \Exception;
 
 // Define plugin version
 define('CUSTOM_COOKIE_VERSION', '1.2.1');
@@ -445,7 +448,7 @@ class CookieConsent
     public function ajax_save_integration_settings(): void
     {
         // Check nonce
-        if (! isset($_POST['nonce']) || ! \wp_verify_nonce($_POST['nonce'], 'custom_cookie_nonce')) {
+        if (! isset($_POST['nonce']) || ! \wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'custom_cookie_nonce')) {
             $this->debug_log('ajax_save_integration_settings() - Nonce verification failed', $_POST);
             \wp_send_json_error(array('message' => __('Security check failed.', 'custom-cookie-consent')));
         }
@@ -470,7 +473,7 @@ class CookieConsent
         // Process each integration field
         foreach ($integration_fields as $field) {
             if (isset($_POST[$field])) {
-                $existing_settings[$field] = ($_POST[$field] === '1');
+                $existing_settings[$field] = (sanitize_text_field(wp_unslash($_POST[$field])) === '1');
             } else {
                 $existing_settings[$field] = false;
             }
@@ -478,16 +481,16 @@ class CookieConsent
 
         // Handle tracking IDs (sanitize to prevent XSS)
         if (isset($_POST['ga_tracking_id'])) {
-            $existing_settings['ga_tracking_id'] = sanitize_text_field($_POST['ga_tracking_id']);
+            $existing_settings['ga_tracking_id'] = sanitize_text_field(wp_unslash($_POST['ga_tracking_id']));
         }
 
         if (isset($_POST['gtm_id'])) {
-            $existing_settings['gtm_id'] = sanitize_text_field($_POST['gtm_id']);
+            $existing_settings['gtm_id'] = sanitize_text_field(wp_unslash($_POST['gtm_id']));
         }
 
         // Handle consent region setting
-        if (isset($_POST['consent_region']) && in_array($_POST['consent_region'], array('NO', 'EEA', 'GLOBAL'))) {
-            $existing_settings['consent_region'] = sanitize_text_field($_POST['consent_region']);
+        if (isset($_POST['consent_region']) && in_array(sanitize_text_field(wp_unslash($_POST['consent_region'])), array('NO', 'EEA', 'GLOBAL'))) {
+            $existing_settings['consent_region'] = sanitize_text_field(wp_unslash($_POST['consent_region']));
         } else {
             $existing_settings['consent_region'] = 'NO'; // Default to Norway if not set or invalid
         }
@@ -555,7 +558,7 @@ class CookieConsent
         }
 
         // Parse the form data
-        parse_str($_POST['formData'], $form_data);
+        parse_str(sanitize_text_field(wp_unslash($_POST['formData'])), $form_data);
 
         $design_settings = array();
 
@@ -2694,6 +2697,12 @@ JAVASCRIPT;
     public function ajax_save_consent(): void
     {
         try {
+            // Verify nonce
+            if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
+                wp_send_json_error(['message' => __('Security check failed', 'custom-cookie-consent')]);
+                return;
+            }
+
             // Get and validate the consent data
             $raw_consent_data = isset($_POST['consent_data']) ? sanitize_text_field(wp_unslash($_POST['consent_data'])) : '';
             $consent_data = json_decode($raw_consent_data, true);
@@ -2810,7 +2819,7 @@ JAVASCRIPT;
             }
 
             // Verify nonce
-            if (!wp_verify_nonce($_POST['security'], 'consent_data_nonce')) {
+            if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['security'])), 'consent_data_nonce')) {
                 $this->debug_log("AJAX get_consent_data invalid security token");
                 throw new Exception("Invalid security token");
             }
@@ -3305,7 +3314,11 @@ JAVASCRIPT;
      */
     public function ajax_scan_cookies(): void
     {
-        check_ajax_referer('cookie_management', 'nonce');
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
+            wp_send_json_error(['message' => __('Security check failed', 'custom-cookie-consent')]);
+            return;
+        }
 
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => __('You do not have permission to scan cookies.', 'custom-cookie-consent')]);
@@ -3596,6 +3609,49 @@ JAVASCRIPT;
             ',
             'after'
         );
+    }
+
+    /**
+     * Plugin deactivation handler
+     */
+    public function deactivate(): void
+    {
+        // Clear scheduled events
+        wp_clear_scheduled_hook('custom_cookie_scan');
+        wp_clear_scheduled_hook('custom_cookie_ocd_update');
+
+        // Remove transients
+        delete_transient('custom_cookie_ocd_schedule_check');
+        delete_transient('custom_cookie_ocd_last_update');
+
+        // Trigger action for cleanup
+        do_action('custom_cookie_consent_deactivate');
+    }
+
+    /**
+     * Plugin uninstall handler - remove all plugin data
+     */
+    public static function uninstall(): void
+    {
+        // Delete all plugin options
+        delete_option('custom_cookie_settings');
+        delete_option('custom_cookie_design');
+        delete_option('custom_cookie_detected');
+        delete_option('custom_cookie_db_version');
+        delete_option('custom_cookie_ocd_database');
+        delete_option('custom_cookie_consent_stats');
+
+        // Drop database tables
+        $consent_logger = new ConsentLogger();
+        $consent_logger->drop_database_table();
+
+        // Clear any scheduled hooks
+        wp_clear_scheduled_hook('custom_cookie_scan');
+        wp_clear_scheduled_hook('custom_cookie_ocd_update');
+
+        // Delete transients
+        delete_transient('custom_cookie_ocd_schedule_check');
+        delete_transient('custom_cookie_ocd_last_update');
     }
 }
 

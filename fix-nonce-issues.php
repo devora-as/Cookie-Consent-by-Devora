@@ -19,6 +19,7 @@
  * 
  * 2. includes/class-consent-logger.php - FIXED
  *    - Updated ajax_export_logs to verify the cookie_analytics_nonce
+ *    - Fixed ajax_log_consent to properly sanitize the consent_data parameter
  * 
  * 3. admin/templates/translations.php - FIXED
  *    - Added nonce field to the translations form with wp_nonce_field('cookie_translation_nonce', 'translation_nonce')
@@ -34,9 +35,25 @@
  * 
  * 6. cookie-consent.php - FIXED
  *    - Updated ajax_save_settings to verify both cookie_management and cookie_translation_nonce
+ *    - Fixed missing nonce verification in ajax_save_consent method
+ *    - Fixed ajax_scan_cookies to use wp_verify_nonce instead of check_ajax_referer
+ *    - Fixed ajax_get_consent_data to properly sanitize the security parameter
+ *    - Added sanitization to formData parameter in ajax_save_design
+ *    - Added proper sanitization to ajax_save_integration_settings POST fields
  *    
  * 7. admin/js/admin-script.js - FIXED
  *    - Updated to detect and use the translation_nonce field from the form
+ *
+ * 8. includes/class-admin-interface.php - FIXED
+ *    - Updated ajax_categorize_cookie to use wp_verify_nonce instead of check_ajax_referer
+ *    - Updated ajax_bulk_categorize method to use wp_verify_nonce instead of check_ajax_referer
+ *
+ * 9. includes/class-cookie-scanner.php - FIXED
+ *    - Added missing nonce verification in ajax_report_unknown
+ *    - Updated ajax_report_cookies to use wp_verify_nonce instead of check_ajax_referer
+ *
+ * 10. includes/class-open-cookie-database.php - FIXED
+ *    - Updated ajax_force_update to use wp_verify_nonce instead of check_ajax_referer  
  */
 
 /**

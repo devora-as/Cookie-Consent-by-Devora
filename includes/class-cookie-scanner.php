@@ -119,10 +119,15 @@ class CookieScanner
 
     public function ajax_report_cookies()
     {
-        check_ajax_referer('cookie_scan', '_nonce');
+        // Verify nonce
+        if (!isset($_POST['_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_nonce'])), 'cookie_scan')) {
+            wp_send_json_error(['message' => esc_html__('Security verification failed', 'custom-cookie-consent')]);
+            return;
+        }
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Permission denied');
+            wp_send_json_error(['message' => esc_html__('Permission denied', 'custom-cookie-consent')]);
+            return;
         }
 
         $cookies_raw = sanitize_text_field(wp_unslash($_POST['cookies'] ?? '[]'));
@@ -141,6 +146,18 @@ class CookieScanner
 
     public function ajax_report_unknown()
     {
+        // Verify nonce
+        if (!isset($_POST['_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['_nonce'])), 'cookie_scan')) {
+            wp_send_json_error(['message' => esc_html__('Security verification failed', 'custom-cookie-consent')]);
+            return;
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => esc_html__('Permission denied', 'custom-cookie-consent')]);
+            return;
+        }
+
         // Sanitize and validate the cookie name
         $cookie_name = isset($_POST['cookie']) ? sanitize_text_field(wp_unslash($_POST['cookie'])) : '';
 

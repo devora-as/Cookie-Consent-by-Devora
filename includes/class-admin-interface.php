@@ -373,7 +373,10 @@ class AdminInterface
     public function ajax_categorize_cookie()
     {
         // Verify nonce
-        check_ajax_referer('cookie_management', 'nonce');
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
+            wp_send_json_error(['message' => esc_html__('Security verification failed', 'custom-cookie-consent')]);
+            return;
+        }
 
         // Check permissions
         if (!current_user_can('manage_options')) {
@@ -420,7 +423,10 @@ class AdminInterface
     public function ajax_bulk_categorize()
     {
         // Verify nonce
-        check_ajax_referer('cookie_management', 'nonce');
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
+            wp_send_json_error(['message' => esc_html__('Security verification failed', 'custom-cookie-consent')]);
+            return;
+        }
 
         // Check permissions
         if (!current_user_can('manage_options')) {

@@ -140,7 +140,14 @@ class OpenCookieDatabase
     public function ajax_force_update()
     {
         // Verify nonce
-        check_ajax_referer('cookie_management', 'nonce');
+        if (! isset($_POST['nonce']) || ! wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
+            wp_send_json_error(
+                array(
+                    'message' => __('Security verification failed.', 'custom-cookie-consent'),
+                )
+            );
+            return;
+        }
 
         // Check permissions
         if (! current_user_can('manage_options')) {
