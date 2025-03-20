@@ -27,15 +27,51 @@ msgid "Settings"
 msgstr ""
 
 #: includes/class-admin-interface.php:58
-msgid "Text & Translations"
+msgid "Styling"
 msgstr ""
 
 #: includes/class-admin-interface.php:67
-msgid "Analytics & Statistics"
+msgid "Text & Translations"
 msgstr ""
 
 #: includes/class-admin-interface.php:76
+msgid "Analytics & Statistics"
+msgstr ""
+
+#: includes/class-admin-interface.php:85
 msgid "Documentation"
+msgstr ""
+
+#: admin/templates/design.php:17
+msgid "Cookie Consent Styling"
+msgstr ""
+
+#: admin/templates/design.php:50
+msgid "Styling Customization"
+msgstr ""
+
+#: admin/templates/design.php:342
+msgid "Save Styling Settings"
+msgstr ""
+
+#: admin/templates/design.php:732
+msgid "Saving..."
+msgstr ""
+
+#: cookie-consent.php:536
+msgid "Styling settings saved successfully"
+msgstr ""
+
+#: cookie-consent.php:538
+msgid "Error saving styling settings. Please try again."
+msgstr ""
+
+#: admin/templates/design.php:554
+msgid "An error occurred while saving settings."
+msgstr ""
+
+#: admin/templates/design.php:433
+msgid "Are you sure you want to reset all styling settings to default values?"
 msgstr ""
 
 #: admin/templates/translations.php:19

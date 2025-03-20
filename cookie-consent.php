@@ -532,12 +532,12 @@ class CookieConsent
     }
 
     /**
-     * Handles AJAX request to save design settings.
+     * Handles AJAX request to save styling settings.
      */
     public function ajax_save_design(): void
     {
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            $this->debug_log('ajax_save_design() - Received design settings save request', $_POST);
+            $this->debug_log('ajax_save_design() - Received styling settings save request', $_POST);
         }
 
         if (! isset($_POST['nonce']) || ! \wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_design_nonce')) {
@@ -613,9 +613,9 @@ class CookieConsent
             $design_settings['last_updated'] = time();
             \update_option('custom_cookie_design', $design_settings);
 
-            \wp_send_json_success(array('message' => __('Design settings saved successfully', 'custom-cookie-consent')));
+            \wp_send_json_success(array('message' => __('Styling settings saved successfully', 'custom-cookie-consent')));
         } else {
-            \wp_send_json_error(array('message' => __('Error saving design settings. Please try again.', 'custom-cookie-consent')));
+            \wp_send_json_error(array('message' => __('Error saving styling settings. Please try again.', 'custom-cookie-consent')));
         }
     }
 

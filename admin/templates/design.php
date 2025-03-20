@@ -16,7 +16,7 @@ if (! defined('ABSPATH')) {
 
 <div class="wrap cookie-consent-admin-wrap">
     <div class="cookie-consent-admin-header">
-        <h1><?php _e('Cookie Consent Design', 'custom-cookie-consent'); ?></h1>
+        <h1><?php _e('Cookie Consent Styling', 'custom-cookie-consent'); ?></h1>
 
         <div class="cookie-consent-header-actions">
             <a href="<?php echo admin_url('admin.php?page=custom-cookie-translations'); ?>" class="button">
@@ -36,7 +36,7 @@ if (! defined('ABSPATH')) {
             <?php _e('Settings', 'custom-cookie-consent'); ?>
         </a>
         <a href="<?php echo admin_url('admin.php?page=custom-cookie-design'); ?>" class="active">
-            <?php _e('Design', 'custom-cookie-consent'); ?>
+            <?php _e('Styling', 'custom-cookie-consent'); ?>
         </a>
         <a href="<?php echo admin_url('admin.php?page=custom-cookie-translations'); ?>">
             <?php _e('Text & Translations', 'custom-cookie-consent'); ?>
@@ -50,7 +50,7 @@ if (! defined('ABSPATH')) {
     </div>
 
     <div class="cookie-consent-admin-card">
-        <h2><?php _e('Design Customization', 'custom-cookie-consent'); ?></h2>
+        <h2><?php _e('Styling Customization', 'custom-cookie-consent'); ?></h2>
         <p class="description"><?php _e('Customize the appearance of your cookie consent banner. All customizations comply with WCAG 2.2 Level AA accessibility requirements.', 'custom-cookie-consent'); ?></p>
 
         <form class="cookie-consent-settings-form js-design-settings-form" method="post" action="">
@@ -385,7 +385,7 @@ if (! defined('ABSPATH')) {
             </div>
 
             <div class="submit-container">
-                <input type="submit" name="submit" class="button button-primary" value="<?php _e('Save Design Settings', 'custom-cookie-consent'); ?>">
+                <input type="submit" name="submit" class="button button-primary" value="<?php _e('Save Styling Settings', 'custom-cookie-consent'); ?>">
                 <button type="button" class="button" id="reset-design-defaults"><?php _e('Reset to Defaults', 'custom-cookie-consent'); ?></button>
             </div>
         </form>
@@ -747,7 +747,7 @@ if (! defined('ABSPATH')) {
                         .hide().insertBefore(form).fadeIn();
                 },
                 complete: function() {
-                    form.find('input[type="submit"]').attr('disabled', false).val('<?php _e('Save Design Settings', 'custom-cookie-consent'); ?>');
+                    form.find('input[type="submit"]').attr('disabled', false).val('<?php _e('Save Styling Settings', 'custom-cookie-consent'); ?>');
                 }
             });
         });

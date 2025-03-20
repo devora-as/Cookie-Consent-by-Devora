@@ -70,8 +70,8 @@ class AdminInterface
 
         add_submenu_page(
             'custom-cookie-consent',
-            __('Design', 'custom-cookie-consent'),
-            __('Design', 'custom-cookie-consent'),
+            __('Styling', 'custom-cookie-consent'),
+            __('Styling', 'custom-cookie-consent'),
             'manage_options',
             'custom-cookie-design',
             [$this, 'render_design_page']
@@ -244,7 +244,7 @@ class AdminInterface
     }
 
     /**
-     * Render the design customization page
+     * Render the styling customization page
      */
     public function render_design_page()
     {

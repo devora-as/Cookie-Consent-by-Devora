@@ -29,16 +29,52 @@ msgid "Settings"
 msgstr "Innstillinger"
 
 #: includes/class-admin-interface.php:58
+msgid "Styling"
+msgstr "Utseende"
+
+#: includes/class-admin-interface.php:67
 msgid "Text & Translations"
 msgstr "Tekst og oversettelser"
 
-#: includes/class-admin-interface.php:67
+#: includes/class-admin-interface.php:76
 msgid "Analytics & Statistics"
 msgstr "Analyse og statistikk"
 
-#: includes/class-admin-interface.php:76
+#: includes/class-admin-interface.php:85
 msgid "Documentation"
 msgstr "Dokumentasjon"
+
+#: admin/templates/design.php:17
+msgid "Cookie Consent Styling"
+msgstr "Utseende for informasjonskapsler"
+
+#: admin/templates/design.php:50
+msgid "Styling Customization"
+msgstr "Tilpasning av utseende"
+
+#: admin/templates/design.php:342
+msgid "Save Styling Settings"
+msgstr "Lagre utseendeinnstillinger"
+
+#: admin/templates/design.php:732
+msgid "Saving..."
+msgstr "Lagrer..."
+
+#: cookie-consent.php:536
+msgid "Styling settings saved successfully"
+msgstr "Utseendeinnstillinger lagret"
+
+#: cookie-consent.php:538
+msgid "Error saving styling settings. Please try again."
+msgstr "Feil ved lagring av utseendeinnstillinger. Prøv igjen."
+
+#: admin/templates/design.php:554
+msgid "An error occurred while saving settings."
+msgstr "Det oppstod en feil under lagring av innstillinger."
+
+#: admin/templates/design.php:433
+msgid "Are you sure you want to reset all styling settings to default values?"
+msgstr "Er du sikker på at du vil tilbakestille alle utseendeinnstillinger til standardverdier?"
 
 #: admin/templates/translations.php:19
 msgid "Back to Settings"

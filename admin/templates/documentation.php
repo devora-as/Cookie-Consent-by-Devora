@@ -29,6 +29,9 @@ if (!defined('ABSPATH')) {
         <a href="<?php echo admin_url('admin.php?page=custom-cookie-settings'); ?>">
             <?php _e('Settings', 'custom-cookie-consent'); ?>
         </a>
+        <a href="<?php echo admin_url('admin.php?page=custom-cookie-design'); ?>">
+            <?php _e('Styling', 'custom-cookie-consent'); ?>
+        </a>
         <a href="<?php echo admin_url('admin.php?page=custom-cookie-translations'); ?>">
             <?php _e('Text & Translations', 'custom-cookie-consent'); ?>
         </a>
