@@ -697,3 +697,18 @@ The plugin automatically adds a cookie consent banner to your website.
 ## Documentation
 
 For full documentation, please visit the [plugin website](https://devora.no/plugins/cookie-consent).
+
+## Multi-Language Support
+
+Cookie Consent by Devora now includes built-in support for the following languages:
+
+- English (en_US)
+- Norwegian (nb_NO)
+
+The plugin provides a language selector in the Settings page that allows you to choose your preferred language for both the admin interface and default frontend text strings. Even after selecting a language, you can still customize all text in the "Text & Translations" section.
+
+Adding more languages is easy:
+
+1. Copy the template file from the `languages` directory
+2. Create a new translation file for your language
+3. Place it in the `languages` directory

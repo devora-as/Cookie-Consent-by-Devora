@@ -236,10 +236,57 @@ class AdminInterface
 
     public function render_translations_page()
     {
-        // Text and translation settings
-        $settings = get_option('custom_cookie_settings', []);
+        // Get settings
+        $settings = get_option('custom_cookie_settings', array());
 
-        include plugin_dir_path(dirname(__FILE__)) . 'admin/templates/translations.php';
+        // Set default values for text fields if not set
+        $default_texts = array(
+            // Banner text
+            'banner_title'          => __('We use cookies', 'custom-cookie-consent'),
+            'banner_text'           => __('We use cookies to improve your experience, personalize content and analyze our traffic.', 'custom-cookie-consent'),
+            'privacy_text'          => __('Privacy Policy', 'custom-cookie-consent'),
+            'cookie_policy_text'    => __('Cookie Policy', 'custom-cookie-consent'),
+            'close_button_text'     => __('Close', 'custom-cookie-consent'),
+            'close_button_aria_label' => __('Close cookie banner', 'custom-cookie-consent'),
+
+            // Category titles and descriptions
+            'necessary_title'       => __('Necessary', 'custom-cookie-consent'),
+            'necessary_description' => __('These cookies are necessary for the website to function and cannot be disabled.', 'custom-cookie-consent'),
+            'analytics_title'       => __('Analytics', 'custom-cookie-consent'),
+            'analytics_description' => __('These cookies help us understand how visitors use the website.', 'custom-cookie-consent'),
+            'functional_title'      => __('Functional', 'custom-cookie-consent'),
+            'functional_description' => __('These cookies enable enhanced functionality and personalization.', 'custom-cookie-consent'),
+            'marketing_title'       => __('Marketing', 'custom-cookie-consent'),
+            'marketing_description' => __('These cookies are used to track visitors across websites to display relevant advertisements.', 'custom-cookie-consent'),
+
+            // Button text
+            'accept_button'         => __('Accept All', 'custom-cookie-consent'),
+            'decline_button'        => __('Decline All', 'custom-cookie-consent'),
+            'save_button'           => __('Save Preferences', 'custom-cookie-consent'),
+            'change_settings_button' => __('Change Cookie Settings', 'custom-cookie-consent'),
+
+            // Consent data labels
+            'consent_choices_heading' => __('Your Consent Choices', 'custom-cookie-consent'),
+            'active_cookies_heading' => __('Active Cookies:', 'custom-cookie-consent'),
+            'consent_status_accepted' => __('Accepted', 'custom-cookie-consent'),
+            'consent_status_declined' => __('Declined', 'custom-cookie-consent'),
+            'cookie_category_label' => __('Category:', 'custom-cookie-consent'),
+            'cookie_purpose_label'  => __('Purpose:', 'custom-cookie-consent'),
+            'cookie_expiry_label'   => __('Expires:', 'custom-cookie-consent'),
+            'sources_label'         => __('Sources:', 'custom-cookie-consent'),
+            'consent_last_updated'  => __('Last updated:', 'custom-cookie-consent'),
+            'no_cookies_message'    => __('No cookies are currently active in this category.', 'custom-cookie-consent'),
+        );
+
+        // Apply defaults to settings
+        foreach ($default_texts as $key => $default_value) {
+            if (!isset($settings[$key])) {
+                $settings[$key] = $default_value;
+            }
+        }
+
+        // Include the template
+        include_once plugin_dir_path(dirname(__FILE__)) . 'admin/templates/translations.php';
     }
 
     /**

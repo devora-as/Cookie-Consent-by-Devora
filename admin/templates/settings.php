@@ -69,6 +69,23 @@ if (! defined('ABSPATH')) {
             </div>
 
             <div class="form-field">
+                <label for="plugin_language"><?php _e('Plugin Language', 'custom-cookie-consent'); ?></label>
+                <?php
+                $current_language = isset($settings['plugin_language']) ? $settings['plugin_language'] : 'en_US';
+                $available_languages = array(
+                    'en_US' => __('English', 'custom-cookie-consent'),
+                    'nb_NO' => __('Norwegian', 'custom-cookie-consent')
+                );
+                ?>
+                <select id="plugin_language" name="plugin_language">
+                    <?php foreach ($available_languages as $code => $name) : ?>
+                        <option value="<?php echo esc_attr($code); ?>" <?php selected($current_language, $code); ?>><?php echo esc_html($name); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="description"><?php _e('Select the language for the plugin interface and frontend text. Note: You can still customize all text strings in the Text & Translations section.', 'custom-cookie-consent'); ?></p>
+            </div>
+
+            <div class="form-field">
                 <label>
                     <input type="checkbox" name="enable_anti_blocker" value="1" <?php checked($settings['enable_anti_blocker'] ?? false); ?>>
                     <?php _e('Enable Anti-Ad-Blocker Protection', 'custom-cookie-consent'); ?>

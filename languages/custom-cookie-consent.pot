@@ -1,0 +1,143 @@
+# Copyright (C) 2023 Devora AS
+# This file is distributed under the GPL v3 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Cookie Consent by Devora 1.2.1\n"
+"Report-Msgid-Bugs-To: https://github.com/devora-as/Cookie-Consent-by-Devora/issues\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Devora AS <support@devora.no>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2023-03-20T12:00:00+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.8.1\n"
+"X-Domain: custom-cookie-consent\n"
+
+#: cookie-consent.php:43
+msgid "Cookie Consent"
+msgstr ""
+
+#: includes/class-admin-interface.php:40
+msgid "Cookie Scanner"
+msgstr ""
+
+#: includes/class-admin-interface.php:49
+msgid "Settings"
+msgstr ""
+
+#: includes/class-admin-interface.php:58
+msgid "Text & Translations"
+msgstr ""
+
+#: includes/class-admin-interface.php:67
+msgid "Analytics & Statistics"
+msgstr ""
+
+#: includes/class-admin-interface.php:76
+msgid "Documentation"
+msgstr ""
+
+#: admin/templates/translations.php:19
+msgid "Back to Settings"
+msgstr ""
+
+#: admin/templates/translations.php:26
+msgid "Dashboard"
+msgstr ""
+
+#: admin/templates/translations.php:46
+msgid "Text Customization & Translations"
+msgstr ""
+
+#: admin/templates/translations.php:47
+msgid "Customize all front-end text displayed to your visitors. This allows for complete translation of all user-facing text."
+msgstr ""
+
+#: admin/templates/translations.php:50
+msgid "Search for settings..."
+msgstr ""
+
+#: admin/templates/translations.php:59
+msgid "Banner Text"
+msgstr ""
+
+#: admin/templates/translations.php:63
+msgid "Cookie Categories"
+msgstr ""
+
+#: admin/templates/translations.php:67
+msgid "Consent Data Display"
+msgstr ""
+
+#: admin/templates/translations.php:71
+msgid "Buttons"
+msgstr ""
+
+#: admin/templates/translations.php:75
+msgid "Labels & Messages"
+msgstr ""
+
+#: admin/templates/translations.php:87
+msgid "Main Banner Text"
+msgstr ""
+
+#: admin/templates/translations.php:88
+msgid "The primary text shown on your cookie consent banner."
+msgstr ""
+
+#: admin/templates/translations.php:91
+msgid "Banner Title"
+msgstr ""
+
+#: admin/templates/translations.php:93
+msgid "The headline of your cookie consent banner."
+msgstr ""
+
+#: admin/templates/translations.php:97
+msgid "Banner Text"
+msgstr ""
+
+#: admin/templates/translations.php:99
+msgid "The main explanatory text of your cookie banner."
+msgstr ""
+
+#: admin/templates/translations.php:103
+msgid "Privacy Link Text"
+msgstr ""
+
+#: admin/templates/translations.php:107
+msgid "Cookie Policy Link Text"
+msgstr ""
+
+#: admin/templates/translations.php:109
+msgid "The text for the cookie policy link in the banner."
+msgstr ""
+
+#: admin/templates/translations.php:113
+msgid "Close Button Text"
+msgstr ""
+
+#: admin/templates/translations.php:117
+msgid "Close Button Aria Label"
+msgstr ""
+
+#: admin/templates/translations.php:119
+msgid "Accessibility text for screen readers."
+msgstr ""
+
+#: admin/templates/translations.php:127
+msgid "Necessary Cookies"
+msgstr ""
+
+#: admin/templates/translations.php:130
+msgid "Necessary Category Title"
+msgstr ""
+
+#: admin/templates/translations.php:134
+msgid "Necessary Category Description"
+msgstr ""
+
+#: admin/templates/translations.php:142
+msgid "Analytics Cookies"
+msgstr "" 

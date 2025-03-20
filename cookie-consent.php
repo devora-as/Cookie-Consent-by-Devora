@@ -44,6 +44,14 @@ define('CUSTOM_COOKIE_DB_VERSION', '1.0');
 
 // First, register the text domain loading at the correct hook BEFORE any class instantiation
 add_action('plugins_loaded', function () {
+    // Get selected language from options, default to WordPress locale setting
+    $selected_language = get_option('custom_cookie_consent_settings', []);
+    $language = isset($selected_language['plugin_language']) ? $selected_language['plugin_language'] : determine_locale();
+
+    // Load the selected language
+    load_textdomain('custom-cookie-consent', plugin_dir_path(__FILE__) . 'languages/custom-cookie-consent-' . $language . '.mo');
+
+    // Fallback to default text domain loading if specific file not found
     load_plugin_textdomain('custom-cookie-consent', false, dirname(plugin_basename(__FILE__)) . '/languages');
 });
 
@@ -284,6 +292,7 @@ class CookieConsent
             'cookie_policy_text',
             'close_button_text',
             'close_button_aria_label',
+            'plugin_language', // Add the plugin language field
 
             // Button text
             'accept_button',
@@ -365,6 +374,13 @@ class CookieConsent
 
             // Save settings
             $updated = \update_option('custom_cookie_settings', $settings);
+
+            // Also save to the option used for language selection to ensure consistency
+            if (isset($settings['plugin_language'])) {
+                $language_settings = \get_option('custom_cookie_consent_settings', array());
+                $language_settings['plugin_language'] = $settings['plugin_language'];
+                \update_option('custom_cookie_consent_settings', $language_settings);
+            }
 
             // Debug the update result
             if (defined('WP_DEBUG') && WP_DEBUG) {
