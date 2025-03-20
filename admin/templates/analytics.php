@@ -15,11 +15,27 @@ if (! defined('ABSPATH')) {
 
 // Get statistics data
 $consent_logger = new \CustomCookieConsent\ConsentLogger();
-$period         = isset($_GET['period']) ? sanitize_text_field(wp_unslash($_GET['period'])) : 'month';
-$stats          = $consent_logger->get_consent_statistics($period);
+
+// Verify nonce if this is a form submission
+$nonce_verified = false;
+if (isset($_REQUEST['_wpnonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])), 'cookie_analytics_nonce')) {
+    $nonce_verified = true;
+}
+
+// Only process parameters if nonce is verified or if it's an initial page load (not a form submission)
+$period = 'month'; // Default period
+if (($nonce_verified || !isset($_REQUEST['_wpnonce'])) && isset($_GET['period'])) {
+    $period = sanitize_text_field(wp_unslash($_GET['period']));
+}
+
+$stats = $consent_logger->get_consent_statistics($period);
 
 // Get logs data
-$page      = isset($_GET['log_page']) ? intval($_GET['log_page']) : 1;
+$page = 1; // Default page
+if (($nonce_verified || !isset($_REQUEST['_wpnonce'])) && isset($_GET['log_page'])) {
+    $page = absint($_GET['log_page']);
+}
+
 $logs_data = $consent_logger->get_consent_logs($page);
 ?>
 
@@ -28,7 +44,7 @@ $logs_data = $consent_logger->get_consent_logs($page);
         <h1><?php esc_html_e('Analytics & Statistics', 'custom-cookie-consent'); ?></h1>
 
         <div class="cookie-consent-header-actions">
-            <a href="<?php echo esc_url(admin_url('admin-ajax.php?action=export_consent_logs&period=' . $period . '&_wpnonce=' . wp_create_nonce('export_consent_logs'))); ?>" class="button">
+            <a href="<?php echo esc_url(wp_nonce_url(admin_url('admin-ajax.php?action=export_consent_logs&period=' . $period), 'cookie_analytics_nonce', '_wpnonce')); ?>" class="button">
                 <?php esc_html_e('Export CSV', 'custom-cookie-consent'); ?>
             </a>
         </div>
@@ -62,14 +78,19 @@ $logs_data = $consent_logger->get_consent_logs($page);
         <h2><?php esc_html_e('Consent Statistics', 'custom-cookie-consent'); ?></h2>
 
         <div class="consent-analytics-period">
-            <label for="statistics-period"><?php esc_html_e('Time Period:', 'custom-cookie-consent'); ?></label>
-            <select id="statistics-period" class="js-statistics-period">
-                <option value="day" <?php selected($period, 'day'); ?>><?php esc_html_e('Last 24 Hours', 'custom-cookie-consent'); ?></option>
-                <option value="week" <?php selected($period, 'week'); ?>><?php esc_html_e('Last 7 Days', 'custom-cookie-consent'); ?></option>
-                <option value="month" <?php selected($period, 'month'); ?>><?php esc_html_e('Last 30 Days', 'custom-cookie-consent'); ?></option>
-                <option value="year" <?php selected($period, 'year'); ?>><?php esc_html_e('Last 12 Months', 'custom-cookie-consent'); ?></option>
-                <option value="all" <?php selected($period, 'all'); ?>><?php esc_html_e('All Time', 'custom-cookie-consent'); ?></option>
-            </select>
+            <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>">
+                <input type="hidden" name="page" value="custom-cookie-analytics">
+                <?php wp_nonce_field('cookie_analytics_nonce', '_wpnonce'); ?>
+
+                <label for="statistics-period"><?php esc_html_e('Time Period:', 'custom-cookie-consent'); ?></label>
+                <select id="statistics-period" name="period" class="js-statistics-period" onchange="this.form.submit()">
+                    <option value="day" <?php selected($period, 'day'); ?>><?php esc_html_e('Last 24 Hours', 'custom-cookie-consent'); ?></option>
+                    <option value="week" <?php selected($period, 'week'); ?>><?php esc_html_e('Last 7 Days', 'custom-cookie-consent'); ?></option>
+                    <option value="month" <?php selected($period, 'month'); ?>><?php esc_html_e('Last 30 Days', 'custom-cookie-consent'); ?></option>
+                    <option value="year" <?php selected($period, 'year'); ?>><?php esc_html_e('Last 12 Months', 'custom-cookie-consent'); ?></option>
+                    <option value="all" <?php selected($period, 'all'); ?>><?php esc_html_e('All Time', 'custom-cookie-consent'); ?></option>
+                </select>
+            </form>
         </div>
 
         <div class="consent-analytics-overview">
@@ -185,17 +206,24 @@ $logs_data = $consent_logger->get_consent_logs($page);
             <?php if ($logs_data['pagination']['total_pages'] > 1) : ?>
                 <div class="consent-logs-pagination">
                     <?php
+                    $pagination_args = array(
+                        'base'      => add_query_arg(array(
+                            'log_page' => '%#%',
+                            'period'   => $period,
+                            '_wpnonce' => wp_create_nonce('cookie_analytics_nonce')
+                        )),
+                        'format'    => '',
+                        'prev_text' => __('&laquo;', 'custom-cookie-consent'),
+                        'next_text' => __('&raquo;', 'custom-cookie-consent'),
+                        'total'     => $logs_data['pagination']['total_pages'],
+                        'current'   => $logs_data['pagination']['current_page'],
+                        'add_args'  => array(
+                            'page' => 'custom-cookie-analytics'
+                        )
+                    );
+
                     echo wp_kses(
-                        paginate_links(
-                            array(
-                                'base'      => add_query_arg('log_page', '%#%'),
-                                'format'    => '',
-                                'prev_text' => __('&laquo;', 'custom-cookie-consent'),
-                                'next_text' => __('&raquo;', 'custom-cookie-consent'),
-                                'total'     => $logs_data['pagination']['total_pages'],
-                                'current'   => $logs_data['pagination']['current_page'],
-                            )
-                        ),
+                        paginate_links($pagination_args),
                         array(
                             'a'    => array(
                                 'href'  => array(),
@@ -216,14 +244,6 @@ $logs_data = $consent_logger->get_consent_logs($page);
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Period selection handler
-        const periodSelect = document.querySelector('.js-statistics-period');
-        if (periodSelect) {
-            periodSelect.addEventListener('change', function() {
-                window.location.href = '<?php echo esc_js(admin_url('admin.php?page=custom-cookie-analytics&period=')); ?>' + this.value;
-            });
-        }
-
         // Chart JS for consent trend
         const ctx = document.getElementById('consentTrendChart').getContext('2d');
 

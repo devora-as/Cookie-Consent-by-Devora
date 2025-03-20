@@ -87,6 +87,7 @@ if (! defined('ABSPATH')) {
             </nav>
 
             <form class="cookie-consent-settings-form js-cookie-settings-form" method="post" action="">
+                <?php wp_nonce_field('cookie_translation_nonce', 'translation_nonce'); ?>
                 <!-- Banner Section -->
                 <div id="banner-section" class="tab-content active">
                     <div class="settings-section">

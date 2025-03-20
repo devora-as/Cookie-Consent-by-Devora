@@ -53,6 +53,7 @@ if (! defined('ABSPATH')) {
         <h2><?php _e('Banner Settings', 'custom-cookie-consent'); ?></h2>
 
         <form class="cookie-consent-settings-form js-cookie-settings-form" method="post" action="">
+            <?php wp_nonce_field('cookie_management', 'nonce'); ?>
             <div class="form-field">
                 <label for="position"><?php _e('Banner Position', 'custom-cookie-consent'); ?></label>
                 <?php
@@ -119,6 +120,7 @@ if (! defined('ABSPATH')) {
         <h2><?php _e('Scanner Settings', 'custom-cookie-consent'); ?></h2>
 
         <form class="cookie-consent-settings-form js-scanner-settings-form" method="post" action="">
+            <?php wp_nonce_field('cookie_management', 'nonce'); ?>
             <div class="form-field">
                 <label>
                     <input type="checkbox" name="auto_scan" value="1" <?php checked($settings['auto_scan'] ?? true); ?>>
@@ -150,7 +152,7 @@ if (! defined('ABSPATH')) {
         <h2><?php _e('Integration Settings', 'custom-cookie-consent'); ?></h2>
 
         <form class="cookie-consent-settings-form js-integration-settings-form" method="post" action="">
-            <?php wp_nonce_field('custom_cookie_nonce', 'nonce'); ?>
+            <?php wp_nonce_field('cookie_management', 'nonce'); ?>
 
             <!-- Matomo Integration Section -->
             <div class="settings-section">

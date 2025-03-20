@@ -270,7 +270,11 @@ class CookieConsent
             $this->debug_log('ajax_save_settings() - Received settings save request', $_POST);
         }
 
-        if (! isset($_POST['nonce']) || ! \wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management')) {
+        if (
+            ! isset($_POST['nonce']) ||
+            (! \wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_management') &&
+                ! \wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'cookie_translation_nonce'))
+        ) {
             \wp_send_json_error(array('message' => __('Invalid security token. Please refresh the page and try again.', 'custom-cookie-consent')));
             return;
         }

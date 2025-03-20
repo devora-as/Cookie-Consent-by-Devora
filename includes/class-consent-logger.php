@@ -426,7 +426,7 @@ class ConsentLogger
         }
 
         // Verify nonce
-        if (! isset($_GET['_wpnonce']) || ! wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'export_consent_logs')) {
+        if (! isset($_GET['_wpnonce']) || ! wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'cookie_analytics_nonce')) {
             wp_die(esc_html__('Security check failed', 'custom-cookie-consent'));
         }
 

@@ -266,6 +266,16 @@
       // Always use the same nonce for all settings forms
       let nonceValue = customCookieAdminSettings.nonce;
 
+      // Check if there's a translation_nonce field for translations page
+      const translationNonceField = $form.find(
+        'input[name="translation_nonce"]'
+      );
+      if (translationNonceField.length > 0) {
+        nonceValue = translationNonceField.val();
+        formAction = "custom_cookie_save_settings"; // Use the same action for translations
+        debugLog("Using translation nonce:", nonceValue);
+      }
+
       // Debug logging and form type identification
       if ($form.hasClass("js-integration-settings-form")) {
         debugLog("Saving integration settings");
